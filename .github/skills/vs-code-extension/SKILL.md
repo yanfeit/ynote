@@ -1,4 +1,17 @@
-# SKILL.md — VS Code Extension Development
+---
+name: vs-code-extension
+description: 'TypeScript VS Code extension development workflow. Use for compiling, packaging, installing, testing, debugging, and releasing VS Code extensions. Covers tsconfig setup, .vscodeignore, vsce packaging, mocha unit tests, Extension Host debugging, Remote SSH deployment, and git release workflow.'
+---
+
+# VS Code Extension Development (TypeScript)
+
+## When to Use
+- Compiling or building a VS Code extension written in TypeScript
+- Packaging to `.vsix` for distribution
+- Installing or reinstalling the extension locally (including Remote SSH/WSL)
+- Writing or running unit tests and integration tests
+- Debugging activation failures, missing commands, or runtime errors
+- Managing version bumps and git releases
 
 ## Build & Compile
 
@@ -34,8 +47,7 @@ npx @vscode/vsce package        # Includes node_modules (production deps)
 # CLI (works for Remote SSH too)
 code --install-extension ./ynote-0.1.0.vsix --force
 
-# Or: VS Code GUI
-# Extensions sidebar → ... → Install from VSIX...
+# Or: VS Code GUI — Extensions sidebar → ... → Install from VSIX...
 ```
 
 ### Verify Installation
@@ -59,62 +71,50 @@ code --install-extension ynote-*.vsix --force
 ```bash
 npm test             # Runs mocha on out/test/**/*.test.js
 ```
-- Test files: `src/test/**/*.test.ts`
-- For modules that import `vscode`, mock the `vscode` module (it's not available outside Extension Host)
+- For modules that import `vscode`, mock the `vscode` module (see [mock template](./references/vscode-mock-pattern.md))
 - For pure logic (parsing, DB), test directly without mocking
 
 ### Integration Tests (Extension Host)
 - Press `F5` to launch Extension Development Host
-- The debug console shows extension activation errors
-- Use `Ctrl+Shift+P` → "Developer: Toggle Developer Tools" → Console tab for runtime errors
-
-### Test Structure
-```
-src/test/
-├── jsonDb.test.ts              # Database CRUD with temp files
-├── metadataFetcher.test.ts     # HTML parsing with fixture strings
-└── integration/
-    └── extension.test.ts       # Full command execution in Extension Host
-```
+- Debug console shows extension activation errors
+- `Ctrl+Shift+P` → "Developer: Toggle Developer Tools" → Console tab for runtime errors
 
 ## Debugging
 
 ### Extension Not Activating
-1. Check `Ctrl+Shift+P` → "Developer: Toggle Developer Tools" → Console
+1. `Ctrl+Shift+P` → "Developer: Toggle Developer Tools" → Console
 2. Look for `Activating extension 'yanfeit.ynote' failed`
 3. Common cause: missing `node_modules/` in installed extension
 
 ### Commands Not Found
 - Extension failed to activate → commands never registered
-- Fix the activation error first (usually a missing dependency or syntax error in compiled JS)
+- Fix the activation error first (usually a missing dependency or syntax error)
 
 ### Remote SSH Issues
-- `extensionKind: ["workspace"]` in `package.json` ensures it runs on the remote
-- Extensions install to `~/.vscode-server/extensions/` on the remote machine
-- Use `code --install-extension` from the remote terminal, not local
+- `extensionKind: ["workspace"]` in `package.json` — runs extension on remote
+- Extensions install to `~/.vscode-server/extensions/` on remote
+- Use `code --install-extension` from the remote terminal
 
-## Git Workflow
-```bash
-git add -A
-git commit -m "description of change"
-git push origin main
-```
+## Release Workflow
 
-### Version Bump for New Release
-1. Update `version` in `package.json`
-2. Add entry to `CHANGELOG.md`
-3. Update `PROGRESS.md`
-4. Commit, tag, push:
+See [release checklist](./references/release-checklist.md) for the full process.
+
 ```bash
-git add -A && git commit -m "v0.2.0: description"
-git tag v0.2.0
+# 1. Update version in package.json
+# 2. Update CHANGELOG.md
+# 3. Compile, test, package
+npm run compile && npm test
+npx @vscode/vsce package
+# 4. Commit, tag, push
+git add -A && git commit -m "v0.x.y: description"
+git tag v0.x.y
 git push origin main --tags
 ```
 
 ## Key Conventions
-- `package.json` → `engines.vscode` must match `@types/vscode` version
-- `activationEvents: []` means activate on any contributed command/view (VS Code infers)
+- `engines.vscode` must match `@types/vscode` version
+- `activationEvents: []` — VS Code infers from contributes (commands, views)
 - `extensionKind: ["workspace"]` for extensions that access filesystem or run processes
-- Use `context.globalStorageUri` for persistent data (not `workspaceState` or `globalState` for large data)
-- Always escape HTML in webview content to prevent XSS
+- Use `context.globalStorageUri` for persistent data
+- Always escape HTML in webview content (XSS prevention)
 - Set CSP headers on webview HTML

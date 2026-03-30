@@ -17,7 +17,7 @@
 | Extension entry point | Done | `src/extension.ts` |
 | Compile & verify | Done | `npm run compile` passes |
 
-## Milestone 2: Polish & Testing (v0.2.0)
+## Milestone 2: Polish & Testing (v0.1.1)
 > Target: 2026-03-30
 
 | Task | Status | Notes |
@@ -27,11 +27,11 @@
 | Integration test in Extension Host | Done | Manual checklist in `src/test/integration/extension.test.ts` |
 | Cross-platform testing (Windows) | Skipped | Works in WSL; native Windows not needed |
 | Error handling improvements | Done | Network errors, invalid URLs, timeout, "Save URL Only" fallback |
-| SKILL.md for extension development | Done | Compile, package, install, test, debug, git workflows |
+| Skill for extension development | Done | `.github/skills/vs-code-extension/` with references and scripts |
 | CLAUDE.md framework diagram | Done | Data flow diagram + component table |
 | README.md install instructions | Done | .vsix install (GUI + CLI), build from source, Remote SSH/WSL |
 
-## Milestone 3: Enhanced Features (v0.3.0+)
+## Milestone 3: Enhanced Features (v0.2.0+)
 > Target: TBD
 
 | Task | Status | Notes |

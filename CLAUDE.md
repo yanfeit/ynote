@@ -154,4 +154,4 @@ npm test             # Run unit tests (mocha)
 - Tests mock `vscode` module for unit testing outside Extension Host
 
 ## Skills Reference
-See `SKILL.md` for detailed workflows on compiling, packaging, installing, testing, and debugging.
+See `.github/skills/vs-code-extension/SKILL.md` for detailed workflows on compiling, packaging, installing, testing, and debugging. The skill includes reference docs for TypeScript standards, vscode mock patterns, and release checklists.
