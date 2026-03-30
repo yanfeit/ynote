@@ -3,6 +3,60 @@
 ## Project Overview
 **YNote** is a VS Code Extension for maintaining a private reading record system. It lets users paste URLs (blog posts, articles, news), auto-extracts metadata (title, author, organization, abstract), stores records in a JSON database, and syncs to a private GitHub repo.
 
+## Framework / Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        VS Code Extension Host                    │
+│                                                                  │
+│  ┌──────────────┐     ┌───────────────────┐                      │
+│  │ User Input   │────▶│ addReading.ts      │                     │
+│  │ (Ctrl+Shift+Y│     │ command handler    │                     │
+│  │  or sidebar) │     └────────┬──────────┘                      │
+│  └──────────────┘              │                                 │
+│                                ▼                                 │
+│                   ┌───────────────────────┐                      │
+│                   │ metadataFetcher.ts     │                     │
+│                   │ axios GET → cheerio   │                      │
+│                   │ parse <meta>, JSON-LD │                      │
+│                   └────────┬──────────────┘                      │
+│                            │ Partial<Reading>                    │
+│                            ▼                                     │
+│                   ┌───────────────────────┐                      │
+│                   │ jsonDb.ts             │                      │
+│                   │ CRUD → readings.json  │                      │
+│                   │ (globalStorageUri)    │                      │
+│                   └────────┬──────────────┘                      │
+│                            │                                     │
+│              ┌─────────────┼─────────────┐                       │
+│              ▼             ▼             ▼                        │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │
+│  │ Tree View    │ │ Dashboard    │ │ gitSync.ts   │             │
+│  │ (sidebar)    │ │ (webview)    │ │ git CLI      │             │
+│  │ newest-first │ │ cards+search │ │ push/pull    │             │
+│  └──────────────┘ └──────────────┘ └──────┬───────┘             │
+│                                           │                      │
+└───────────────────────────────────────────┼──────────────────────┘
+                                            ▼
+                                   ┌─────────────────┐
+                                   │ Private GitHub   │
+                                   │ Repo (remote)    │
+                                   └─────────────────┘
+```
+
+### Component Responsibilities
+| Component | File | Role |
+|-----------|------|------|
+| **Entry point** | `extension.ts` | Registers commands, tree view, wires dependencies |
+| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags) |
+| **Database** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL |
+| **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio |
+| **Sync** | `services/gitSync.ts` | Clone, pull, merge, commit, push via git CLI |
+| **Add command** | `commands/addReading.ts` | URL input → fetch → confirm → save → refresh UI |
+| **Sync command** | `commands/syncToGithub.ts` | Trigger sync with progress + error UI |
+| **Tree view** | `providers/readingsTreeProvider.ts` | Sidebar list with expandable details |
+| **Dashboard** | `webview/DashboardPanel.ts` | HTML card layout with inline search |
+
 ## Architecture
 
 ### Extension Type
@@ -90,3 +144,14 @@ npx @vscode/vsce package   # Produces .vsix file
 | `ynote.showDashboard` | — | Open webview dashboard |
 | `ynote.syncToGithub` | — | Commit and push to GitHub |
 | `ynote.refreshReadings` | — | Refresh tree view |
+
+## Testing
+```bash
+npm test             # Run unit tests (mocha)
+```
+- Unit tests: `src/test/jsonDb.test.ts`, `src/test/metadataFetcher.test.ts`
+- Integration: `src/test/integration/extension.test.ts` (runs in Extension Host via F5)
+- Tests mock `vscode` module for unit testing outside Extension Host
+
+## Skills Reference
+See `SKILL.md` for detailed workflows on compiling, packaging, installing, testing, and debugging.

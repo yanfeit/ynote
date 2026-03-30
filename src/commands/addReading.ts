@@ -35,14 +35,27 @@ export function registerAddReadingCommand(
     }
 
     // Fetch metadata with progress
-    const metadata = await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: 'YNote: Fetching metadata...',
-        cancellable: false,
-      },
-      async () => fetchMetadata(url)
-    );
+    let metadata: Partial<Reading>;
+    try {
+      metadata = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'YNote: Fetching metadata...',
+          cancellable: false,
+        },
+        async () => fetchMetadata(url)
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      const action = await vscode.window.showErrorMessage(
+        `Failed to fetch metadata: ${message}`,
+        'Save URL Only',
+        'Cancel'
+      );
+      if (action !== 'Save URL Only') { return; }
+      // Fallback: save with URL as title, no metadata
+      metadata = { url, title: url, author: '', organization: '', abstract: '', source: '' };
+    }
 
     // Let user confirm/edit the title
     const title = await vscode.window.showInputBox({

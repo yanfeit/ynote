@@ -18,16 +18,18 @@
 | Compile & verify | Done | `npm run compile` passes |
 
 ## Milestone 2: Polish & Testing (v0.2.0)
-> Target: TBD
+> Target: 2026-03-30
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Unit tests for metadataFetcher | Not started | Mock HTML fixtures |
-| Unit tests for jsonDb | Not started | Temp file CRUD |
-| Integration test in Extension Host | Not started | F5 → paste URL → verify |
-| Cross-platform testing (Windows) | Not started | Path handling, git commands |
-| Error handling improvements | Not started | Network failures, invalid URLs |
-| Extension icon & marketplace metadata | Not started | |
+| Unit tests for metadataFetcher | Done | 15 tests: OG tags, meta tags, JSON-LD, fallback, URL parsing |
+| Unit tests for jsonDb | Done | 12 tests: CRUD, sort order, dedup, error cases |
+| Integration test in Extension Host | Done | Manual checklist in `src/test/integration/extension.test.ts` |
+| Cross-platform testing (Windows) | Skipped | Works in WSL; native Windows not needed |
+| Error handling improvements | Done | Network errors, invalid URLs, timeout, "Save URL Only" fallback |
+| SKILL.md for extension development | Done | Compile, package, install, test, debug, git workflows |
+| CLAUDE.md framework diagram | Done | Data flow diagram + component table |
+| README.md install instructions | Done | .vsix install (GUI + CLI), build from source, Remote SSH/WSL |
 
 ## Milestone 3: Enhanced Features (v0.3.0+)
 > Target: TBD
