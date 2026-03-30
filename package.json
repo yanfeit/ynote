@@ -1,0 +1,158 @@
+{
+  "name": "ynote",
+  "displayName": "YNote - Reading Record",
+  "description": "A private reading record system for recording daily reading material with abstracts and metadata.",
+  "version": "0.1.0",
+  "publisher": "yanfeit",
+  "extensionKind": ["workspace"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yanfeit/ynote"
+  },
+  "engines": {
+    "vscode": "^1.110.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "ynote.addReading",
+        "title": "YNote: Add Reading from URL",
+        "icon": "$(add)"
+      },
+      {
+        "command": "ynote.removeReading",
+        "title": "YNote: Remove Reading",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "ynote.openReading",
+        "title": "YNote: Open in Browser",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "ynote.showDashboard",
+        "title": "YNote: Show Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "ynote.syncToGithub",
+        "title": "YNote: Sync to GitHub",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "ynote.refreshReadings",
+        "title": "YNote: Refresh Readings",
+        "icon": "$(refresh)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ynote",
+          "title": "YNote",
+          "icon": "$(book)"
+        }
+      ]
+    },
+    "views": {
+      "ynote": [
+        {
+          "id": "ynoteReadings",
+          "name": "Readings",
+          "icon": "$(book)",
+          "contextualTitle": "YNote Readings"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "ynote.addReading",
+          "when": "view == ynoteReadings",
+          "group": "navigation"
+        },
+        {
+          "command": "ynote.refreshReadings",
+          "when": "view == ynoteReadings",
+          "group": "navigation"
+        },
+        {
+          "command": "ynote.syncToGithub",
+          "when": "view == ynoteReadings",
+          "group": "navigation"
+        },
+        {
+          "command": "ynote.showDashboard",
+          "when": "view == ynoteReadings",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ynote.openReading",
+          "when": "view == ynoteReadings && viewItem == reading",
+          "group": "inline"
+        },
+        {
+          "command": "ynote.removeReading",
+          "when": "view == ynoteReadings && viewItem == reading",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "YNote",
+      "properties": {
+        "ynote.githubRepoUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Private GitHub repository URL for syncing readings (e.g., git@github.com:user/ynote-data.git)"
+        },
+        "ynote.maxAbstractLength": {
+          "type": "number",
+          "default": 500,
+          "description": "Maximum length of extracted abstract text"
+        },
+        "ynote.fallbackDescriptionLength": {
+          "type": "number",
+          "default": 100,
+          "description": "Fallback description length when no abstract is found"
+        },
+        "ynote.fetchTimeout": {
+          "type": "number",
+          "default": 10000,
+          "description": "Timeout in milliseconds for fetching web page metadata"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "ynote.addReading",
+        "key": "ctrl+shift+y",
+        "mac": "cmd+shift+y"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.13.6",
+    "cheerio": "^1.2.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/uuid": "^10.0.0",
+    "@types/vscode": "^1.110.0",
+    "typescript": "^6.0.2"
+  }
+}
