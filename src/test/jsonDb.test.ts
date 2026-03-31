@@ -27,7 +27,6 @@ function makeReading(overrides: Partial<Reading> = {}): Reading {
     updatedAt: overrides.updatedAt || '2026-03-30T12:00:00.000Z',
     tags: overrides.tags || [],
     source: overrides.source || 'example.com',
-    isRead: overrides.isRead ?? false,
     comment: overrides.comment ?? '',
   };
 }
@@ -157,28 +156,6 @@ describe('JsonDb', () => {
     });
   });
 
-  describe('isRead status', () => {
-    it('new reading defaults to unread (isRead=false)', async () => {
-      await db.add(makeReading({ id: 'read-test' }));
-      const all = await db.getAll();
-      assert.strictEqual(all[0].isRead, false);
-    });
-
-    it('can toggle isRead to true', async () => {
-      await db.add(makeReading({ id: 'toggle-read' }));
-      await db.update('toggle-read', { isRead: true });
-      const found = await db.findById('toggle-read');
-      assert.strictEqual(found!.isRead, true);
-    });
-
-    it('can toggle isRead back to false', async () => {
-      await db.add(makeReading({ id: 'toggle-back', isRead: true }));
-      await db.update('toggle-back', { isRead: false });
-      const found = await db.findById('toggle-back');
-      assert.strictEqual(found!.isRead, false);
-    });
-  });
-
   describe('comment', () => {
     it('new reading defaults to empty comment', async () => {
       await db.add(makeReading({ id: 'comment-empty' }));
@@ -211,13 +188,6 @@ describe('JsonDb', () => {
       await db.add(makeReading({ id: 'comment-ts', updatedAt: '2026-01-01T00:00:00.000Z' }));
       await db.update('comment-ts', { comment: 'Note' });
       const found = await db.findById('comment-ts');
-      assert.notStrictEqual(found!.updatedAt, '2026-01-01T00:00:00.000Z');
-    });
-
-    it('updating isRead also updates updatedAt', async () => {
-      await db.add(makeReading({ id: 'read-ts', updatedAt: '2026-01-01T00:00:00.000Z' }));
-      await db.update('read-ts', { isRead: true });
-      const found = await db.findById('read-ts');
       assert.notStrictEqual(found!.updatedAt, '2026-01-01T00:00:00.000Z');
     });
   });

@@ -117,7 +117,6 @@ export function registerAddReadingCommand(
       updatedAt: now,
       tags,
       source: metadata.source || '',
-      isRead: false,
       comment: '',
     };
 

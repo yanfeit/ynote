@@ -5,6 +5,21 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-03-31
+
+### Removed
+- Read/unread status (`isRead` field, `ynote.toggleReadStatus` command) — adding a link implies it has been read
+- Comment display from sidebar tree view — comments now live exclusively in the dashboard
+- `ynote.editComment` sidebar command — replaced by inline dashboard editor
+
+### Changed
+- Comment field now stores HTML (rich text) instead of plain text
+- Dashboard comment editor: click any card to expand a rich text editor with toolbar (Bold, Italic, Strikethrough, Bullet list, Numbered list) and Save button
+- Editor uses VS Code font family and size for visual consistency
+- Only one comment panel open at a time; clicking another card closes the previous
+- Comment indicator (💬) updates dynamically on save
+- 34 unit tests passing (removed 4 isRead-related tests)
+
 ## [0.3.0] - 2026-03-31
 
 ### Added

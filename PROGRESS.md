@@ -41,17 +41,19 @@
 | Right dashboard year-month archiving | Done | Dashboard groups cards by YYYY-MM, latest month expanded, others collapsed |
 | Lightweight tag system | Done | Tag management via QuickPick UI with intelligent recommendations from existing tags and title keywords |
 
-## Milestone 4: Read Status & Comments (v0.3.0)
+## Milestone 4: Rich Text Comments (v0.3.1)
 > Target: 2026-03-31
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Read/unread status | Done | Toggle via sidebar context menu, visual indicators in tree view and dashboard |
-| Per-reading comments | Done | Add/edit/clear text comments via `ynote.editComment` command |
-| Comment display in tree view | Done | Comment shown as expandable detail with 💬 icon in sidebar |
-| Comment display in dashboard | Done | Styled block-quote section in dashboard cards, included in search |
-| Database `findById` method | Done | Direct ID lookup for comment/status operations |
-| Unit tests for new features | Done | 11 new tests: findById, isRead, comment CRUD (38 total) |
+| Remove read/unread status | Done | `isRead` field removed — adding a link implies it has been read by design |
+| Remove comment from sidebar | Done | Comment no longer shown in tree view details |
+| Rich text comment editor in dashboard | Done | Click card to expand editor with Bold, Italic, Strikethrough, Lists |
+| Comment saved as HTML | Done | Rich text stored in `comment` field, rendered inline in dashboard |
+| Save via button | Done | Toolbar Save button sends comment to extension backend |
+| Remove `toggleReadStatus` command | Done | Command and menu entry removed from package.json |
+| Remove `editComment` sidebar command | Done | Replaced by dashboard inline editor |
+| Update unit tests | Done | Removed 4 isRead tests, kept 5 comment tests (34 total) |
 | Search within readings | Deferred | Basic search already functional in dashboard |
 | Export to Markdown | Deferred | Not prioritized for current release |
 | Sync conflict resolution | Deferred | Current merge-by-updatedAt strategy is sufficient; no conflicts observed |

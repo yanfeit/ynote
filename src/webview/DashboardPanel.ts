@@ -21,6 +21,14 @@ export class DashboardPanel {
           vscode.env.openExternal(vscode.Uri.parse(msg.url));
         } else if (msg.command === 'refresh') {
           await this.update();
+        } else if (msg.command === 'saveComment') {
+          try {
+            await this.db.update(msg.id, { comment: msg.comment });
+            vscode.window.showInformationMessage('Comment saved.');
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            vscode.window.showErrorMessage(`Failed to save comment: ${message}`);
+          }
         }
       },
       null,
@@ -85,28 +93,34 @@ export class DashboardPanel {
         const tags = r.tags.length > 0
           ? `<div class="tags">${r.tags.map(t => `<span class="tag">${this.escapeHtml(t)}</span>`).join(' ')}</div>`
           : '';
-        const readBadge = r.isRead
-          ? '<span class="status-badge read">Read</span>'
-          : '<span class="status-badge unread">Unread</span>';
-        const commentSection = r.comment
-          ? `<div class="comment"><span class="comment-label">Comment:</span> ${this.escapeHtml(r.comment)}</div>`
-          : '';
+        const hasComment = r.comment && r.comment.trim().length > 0;
+        const commentIndicator = hasComment ? '<span class="comment-indicator" title="Has comment">💬</span>' : '';
 
         return `
-          <div class="card ${r.isRead ? 'card-read' : ''}" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}" data-comment="${this.escapeAttr(r.comment || '')}">
+          <div class="card" data-id="${this.escapeAttr(r.id)}" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}" data-comment="${this.escapeAttr(r.comment || '')}">
             <div class="card-header">
-              <a href="#" class="title" onclick="openUrl('${this.escapeAttr(r.url)}')">${this.escapeHtml(r.title)}</a>
+              <a href="#" class="title" onclick="event.stopPropagation(); openUrl('${this.escapeAttr(r.url)}')">${this.escapeHtml(r.title)}</a>
               <div class="card-header-right">
-                ${readBadge}
+                ${commentIndicator}
                 <span class="date">${date}</span>
               </div>
             </div>
             ${meta ? `<div class="meta">${meta}</div>` : ''}
             ${r.abstract ? `<p class="abstract">${this.escapeHtml(r.abstract)}</p>` : ''}
-            ${commentSection}
             <div class="footer">
               <span class="source">${this.escapeHtml(r.source)}</span>
               ${tags}
+            </div>
+            <div class="comment-panel" style="display: none;">
+              <div class="comment-toolbar">
+                <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('bold')" title="Bold (Ctrl+B)"><b>B</b></button>
+                <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('italic')" title="Italic (Ctrl+I)"><i>I</i></button>
+                <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('strikeThrough')" title="Strikethrough"><s>S</s></button>
+                <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('insertUnorderedList')" title="Bullet list">•&thinsp;List</button>
+                <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('insertOrderedList')" title="Numbered list">1.&thinsp;List</button>
+                <button type="button" class="toolbar-btn save-btn" onclick="event.stopPropagation(); saveComment(this)" title="Save comment">Save</button>
+              </div>
+              <div class="comment-editor" contenteditable="true" onclick="event.stopPropagation()">${r.comment || ''}</div>
             </div>
           </div>`;
       }).join('\n');
@@ -134,6 +148,7 @@ export class DashboardPanel {
   <style>
     body {
       font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
       color: var(--vscode-foreground);
       background: var(--vscode-editor-background);
       padding: 16px;
@@ -162,7 +177,8 @@ export class DashboardPanel {
       background: var(--vscode-input-background);
       color: var(--vscode-input-foreground);
       border-radius: 4px;
-      font-size: 0.95em;
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
       outline: none;
       box-sizing: border-box;
     }
@@ -179,6 +195,14 @@ export class DashboardPanel {
       border: 1px solid var(--vscode-editorWidget-border);
       border-radius: 6px;
       padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .card:hover {
+      border-color: var(--vscode-focusBorder);
+    }
+    .card.expanded {
+      border-color: var(--vscode-focusBorder);
     }
     .card-header {
       display: flex;
@@ -192,6 +216,9 @@ export class DashboardPanel {
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
+    }
+    .comment-indicator {
+      font-size: 0.85em;
     }
     .title {
       color: var(--vscode-textLink-foreground);
@@ -230,37 +257,6 @@ export class DashboardPanel {
       color: var(--vscode-badge-foreground);
       padding: 2px 8px;
       border-radius: 10px;
-    }
-    .status-badge {
-      font-size: 0.75em;
-      padding: 1px 8px;
-      border-radius: 8px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .status-badge.read {
-      background: var(--vscode-testing-iconPassed, #48a869);
-      color: #fff;
-    }
-    .status-badge.unread {
-      background: var(--vscode-editorWidget-border);
-      color: var(--vscode-foreground);
-    }
-    .card-read {
-      opacity: 0.75;
-    }
-    .comment {
-      margin: 6px 0 8px;
-      padding: 8px 12px;
-      background: var(--vscode-textBlockQuote-background, rgba(127,127,127,0.1));
-      border-left: 3px solid var(--vscode-textLink-foreground);
-      border-radius: 0 4px 4px 0;
-      font-size: 0.9em;
-      line-height: 1.5;
-    }
-    .comment-label {
-      font-weight: 600;
-      color: var(--vscode-textLink-foreground);
     }
     .empty {
       text-align: center;
@@ -315,6 +311,67 @@ export class DashboardPanel {
       padding: 1px 7px;
       border-radius: 8px;
     }
+    /* Comment panel */
+    .comment-panel {
+      margin-top: 10px;
+      border-top: 1px solid var(--vscode-editorWidget-border);
+      padding-top: 10px;
+    }
+    .comment-toolbar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .toolbar-btn {
+      background: var(--vscode-button-secondaryBackground, rgba(127,127,127,0.2));
+      color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+      border: 1px solid var(--vscode-editorWidget-border);
+      border-radius: 3px;
+      padding: 3px 8px;
+      cursor: pointer;
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+      line-height: 1.4;
+    }
+    .toolbar-btn:hover {
+      background: var(--vscode-button-secondaryHoverBackground, rgba(127,127,127,0.35));
+    }
+    .save-btn {
+      margin-left: auto;
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      font-weight: 600;
+      border: none;
+    }
+    .save-btn:hover {
+      background: var(--vscode-button-hoverBackground);
+    }
+    .comment-editor {
+      min-height: 60px;
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 8px 10px;
+      border: 1px solid var(--vscode-input-border);
+      border-radius: 4px;
+      background: var(--vscode-input-background);
+      color: var(--vscode-input-foreground);
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+      line-height: 1.5;
+      outline: none;
+    }
+    .comment-editor:focus {
+      border-color: var(--vscode-focusBorder);
+    }
+    .comment-editor ul, .comment-editor ol {
+      margin: 4px 0;
+      padding-left: 20px;
+    }
+    .comment-editor b, .comment-editor strong { font-weight: 700; }
+    .comment-editor i, .comment-editor em { font-style: italic; }
+    .comment-editor s, .comment-editor strike { text-decoration: line-through; }
   </style>
 </head>
 <body>
@@ -342,6 +399,59 @@ export class DashboardPanel {
         toggle.textContent = '▶';
       }
     }
+    function toggleComment(card) {
+      const panel = card.querySelector('.comment-panel');
+      const isVisible = panel.style.display !== 'none';
+      // Close all other open comment panels
+      document.querySelectorAll('.card').forEach(c => {
+        const p = c.querySelector('.comment-panel');
+        if (p && c !== card) {
+          p.style.display = 'none';
+          c.classList.remove('expanded');
+        }
+      });
+      if (isVisible) {
+        panel.style.display = 'none';
+        card.classList.remove('expanded');
+      } else {
+        panel.style.display = 'block';
+        card.classList.add('expanded');
+        card.querySelector('.comment-editor').focus();
+      }
+    }
+    function execFormat(cmd) {
+      document.execCommand(cmd, false, null);
+      // Re-focus the editor that's currently visible
+      const expanded = document.querySelector('.card.expanded .comment-editor');
+      if (expanded) { expanded.focus(); }
+    }
+    function saveComment(btn) {
+      const card = btn.closest('.card');
+      const editor = card.querySelector('.comment-editor');
+      const id = card.dataset.id;
+      const comment = editor.innerHTML.trim();
+      // Update the data attribute so search picks it up
+      card.dataset.comment = comment;
+      // Update the comment indicator
+      const headerRight = card.querySelector('.card-header-right');
+      let indicator = headerRight.querySelector('.comment-indicator');
+      if (comment && comment !== '<br>') {
+        if (!indicator) {
+          indicator = document.createElement('span');
+          indicator.className = 'comment-indicator';
+          indicator.title = 'Has comment';
+          indicator.textContent = '💬';
+          headerRight.insertBefore(indicator, headerRight.firstChild);
+        }
+      } else {
+        if (indicator) { indicator.remove(); }
+      }
+      vscode.postMessage({ command: 'saveComment', id: id, comment: comment });
+    }
+    // Attach click handlers to cards
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('click', function() { toggleComment(this); });
+    });
     function filterCards(query) {
       const q = query.toLowerCase();
       document.querySelectorAll('.section').forEach(section => {

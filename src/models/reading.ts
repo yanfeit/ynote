@@ -9,6 +9,5 @@ export interface Reading {
   updatedAt: string; // ISO 8601 date string
   tags: string[];
   source: string; // domain extracted from URL
-  isRead: boolean; // read/unread status
-  comment: string; // user comment/notes (text only)
+  comment: string; // user comment/notes (HTML from rich text editor)
 }

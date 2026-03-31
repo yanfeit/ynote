@@ -2,7 +2,7 @@
   "name": "ynote",
   "displayName": "YNote - Reading Record",
   "description": "A private reading record system for recording daily reading material with abstracts and metadata.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "yanfeit",
   "extensionKind": [
     "workspace"
@@ -55,16 +55,6 @@
         "command": "ynote.editTags",
         "title": "YNote: Edit Tags",
         "icon": "$(tag)"
-      },
-      {
-        "command": "ynote.toggleReadStatus",
-        "title": "YNote: Toggle Read/Unread",
-        "icon": "$(eye)"
-      },
-      {
-        "command": "ynote.editComment",
-        "title": "YNote: Edit Comment",
-        "icon": "$(comment)"
       }
     ],
     "viewsContainers": {
@@ -122,16 +112,6 @@
         },
         {
           "command": "ynote.editTags",
-          "when": "view == ynoteReadings && viewItem == reading",
-          "group": "inline"
-        },
-        {
-          "command": "ynote.toggleReadStatus",
-          "when": "view == ynoteReadings && viewItem == reading",
-          "group": "inline"
-        },
-        {
-          "command": "ynote.editComment",
           "when": "view == ynoteReadings && viewItem == reading",
           "group": "inline"
         }

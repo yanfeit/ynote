@@ -54,7 +54,7 @@ YNote is a lightweight note-taking plugin for information management built for d
 | Component | File | Role |
 |-----------|------|------|
 | **Entry point** | `extension.ts` | Registers commands, tree view, wires dependencies |
-| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags, isRead, comment) |
+| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags, comment) |
 | **Database** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL |
 | **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio |
 | **Sync** | `services/gitSync.ts` | Clone, pull, merge, commit, push via git CLI |
@@ -150,6 +150,7 @@ npx @vscode/vsce package   # Produces .vsix file
 | `ynote.showDashboard` | — | Open webview dashboard |
 | `ynote.syncToGithub` | — | Commit and push to GitHub |
 | `ynote.refreshReadings` | — | Refresh tree view |
+| `ynote.editTags` | — | Edit tags on a reading |
 
 ## Testing
 ```bash
