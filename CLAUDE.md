@@ -2,7 +2,7 @@
 
 ## Design Principles
 
-Researchers track the progress of their peers through literature review, and literature management tools have emerged as a targeted solution to systematically address the pain points of collecting, organizing, and retrieving academic literature. For modern developers — especially those working in the artificial intelligence (AI) field — they routinely obtain fragmented updates on cutting-edge industry trends, technical solutions, and open-source project information through multiple channels, including official announcements, WeChat Official Account articles, technical blogs, X (formerly Twitter), and GitHub repositories. Yet they have long lacked a dedicated information management tool that is lightweight and tailored to developers' usage habits.
+Researchers track the progress of their peers through literature review, and literature management tools have emerged as a targeted solution to systematically address the needs of collecting, organizing, and retrieving academic literature. For modern developers — especially those working in the artificial intelligence (AI) field — they routinely obtain fragmented updates on cutting-edge industry trends, technical solutions, and open-source project information through multiple channels, including official announcements, WeChat Official Account articles, technical blogs, X (formerly Twitter), and GitHub repositories. 
 
 YNote is a lightweight note-taking plugin for information management built for developers (especially AI practitioners). It focuses on the full lifecycle management of fragmented industry information, providing users with one-stop capabilities for information collection, structured organization, and efficient indexed retrieval.
 
@@ -54,7 +54,7 @@ YNote is a lightweight note-taking plugin for information management built for d
 | Component | File | Role |
 |-----------|------|------|
 | **Entry point** | `extension.ts` | Registers commands, tree view, wires dependencies |
-| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags) |
+| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags, isRead, comment) |
 | **Database** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL |
 | **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio |
 | **Sync** | `services/gitSync.ts` | Clone, pull, merge, commit, push via git CLI |

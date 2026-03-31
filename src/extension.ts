@@ -129,6 +129,45 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage(`Failed to update tags: ${message}`);
       }
     }),
+
+    vscode.commands.registerCommand('ynote.toggleReadStatus', async (item: ReadingItem) => {
+      if (!item?.reading) { return; }
+      const reading = item.reading;
+      const newStatus = !reading.isRead;
+      try {
+        await db.update(reading.id, { isRead: newStatus });
+        onChanged();
+        vscode.window.showInformationMessage(
+          newStatus ? `Marked "${reading.title}" as read.` : `Marked "${reading.title}" as unread.`
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to update read status: ${message}`);
+      }
+    }),
+
+    vscode.commands.registerCommand('ynote.editComment', async (item: ReadingItem) => {
+      if (!item?.reading) { return; }
+      const reading = item.reading;
+      const comment = await vscode.window.showInputBox({
+        prompt: `Comment for "${reading.title}"`,
+        placeHolder: 'Enter your comment or notes about this reading...',
+        value: reading.comment || '',
+      });
+      if (comment === undefined) { return; } // cancelled
+      try {
+        await db.update(reading.id, { comment });
+        onChanged();
+        if (comment) {
+          vscode.window.showInformationMessage(`Comment saved for "${reading.title}"`);
+        } else {
+          vscode.window.showInformationMessage(`Comment cleared for "${reading.title}"`);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to save comment: ${message}`);
+      }
+    }),
   );
 }
 

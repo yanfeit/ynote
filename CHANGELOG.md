@@ -5,6 +5,23 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-31
+
+### Added
+- Read/unread status: toggle a reading as read or unread via sidebar context menu (`ynote.toggleReadStatus`)
+- Per-reading comments: add, edit, or clear text comments on any reading (`ynote.editComment`)
+- Sidebar tree view shows read status icon (checkmark for read, bookmark for unread) and comment indicator
+- Dashboard displays read/unread badges on each card and renders comments in a styled block-quote
+- Dashboard search now includes comment text in search results
+- `findById()` method on `JsonDb` for direct ID lookups
+- 11 new unit tests: `findById` (2), `isRead` status (3), comment CRUD (6) — total 38 tests passing
+
+### Changed
+- `Reading` model extended with `isRead` (boolean) and `comment` (string) fields
+- New readings default to `isRead: false` and `comment: ''`
+- Tree view `ReadingItem` shows status symbol (✓/○) and 💬 indicator in description
+- Dashboard cards show `card-read` class with reduced opacity for read items
+
 ## [0.1.1] - 2026-03-30
 
 ### Changed

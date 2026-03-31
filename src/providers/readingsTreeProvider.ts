@@ -39,11 +39,13 @@ export class ReadingsTreeProvider implements vscode.TreeDataProvider<TreeElement
     if (element instanceof ReadingItem) {
       const r = element.reading;
       const details: ReadingDetail[] = [];
+      details.push(new ReadingDetail('Status', r.isRead ? 'Read' : 'Unread'));
       if (r.author) { details.push(new ReadingDetail('Author', r.author)); }
       if (r.organization) { details.push(new ReadingDetail('Org', r.organization)); }
       if (r.abstract) { details.push(new ReadingDetail('Abstract', r.abstract)); }
       if (r.source) { details.push(new ReadingDetail('Source', r.source)); }
       if (r.tags.length > 0) { details.push(new ReadingDetail('Tags', r.tags.join(', '))); }
+      if (r.comment) { details.push(new ReadingDetail('Comment', r.comment)); }
       details.push(new ReadingDetail('URL', r.url));
       return details;
     }
@@ -73,10 +75,12 @@ export class ReadingItem extends vscode.TreeItem {
   constructor(public readonly reading: Reading) {
     const date = new Date(reading.addedAt).toLocaleDateString();
     super(reading.title, vscode.TreeItemCollapsibleState.Collapsed);
-    this.description = date;
-    this.tooltip = `${reading.title}\n${reading.author ? 'By ' + reading.author : ''}\n${reading.abstract}`;
+    const statusIcon = reading.isRead ? '✓' : '○';
+    const commentIcon = reading.comment ? ' 💬' : '';
+    this.description = `${statusIcon} ${date}${commentIcon}`;
+    this.tooltip = `${reading.title}\n${reading.author ? 'By ' + reading.author : ''}\n${reading.abstract}${reading.comment ? '\n\nComment: ' + reading.comment : ''}`;
     this.contextValue = 'reading';
-    this.iconPath = new vscode.ThemeIcon('bookmark');
+    this.iconPath = new vscode.ThemeIcon(reading.isRead ? 'pass-filled' : 'bookmark');
   }
 }
 
@@ -96,6 +100,10 @@ class ReadingDetail extends vscode.TreeItem {
       this.iconPath = new vscode.ThemeIcon('note');
     } else if (label === 'Tags') {
       this.iconPath = new vscode.ThemeIcon('tag');
+    } else if (label === 'Comment') {
+      this.iconPath = new vscode.ThemeIcon('comment');
+    } else if (label === 'Status') {
+      this.iconPath = new vscode.ThemeIcon(value === 'Read' ? 'pass-filled' : 'circle-large-outline');
     } else {
       this.iconPath = new vscode.ThemeIcon('info');
     }

@@ -41,16 +41,32 @@
 | Right dashboard year-month archiving | Done | Dashboard groups cards by YYYY-MM, latest month expanded, others collapsed |
 | Lightweight tag system | Done | Tag management via QuickPick UI with intelligent recommendations from existing tags and title keywords |
 
-## Milestone 4: Future Enhancements (v0.3.0+)
+## Milestone 4: Read Status & Comments (v0.3.0)
+> Target: 2026-03-31
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Read/unread status | Done | Toggle via sidebar context menu, visual indicators in tree view and dashboard |
+| Per-reading comments | Done | Add/edit/clear text comments via `ynote.editComment` command |
+| Comment display in tree view | Done | Comment shown as expandable detail with 💬 icon in sidebar |
+| Comment display in dashboard | Done | Styled block-quote section in dashboard cards, included in search |
+| Database `findById` method | Done | Direct ID lookup for comment/status operations |
+| Unit tests for new features | Done | 11 new tests: findById, isRead, comment CRUD (38 total) |
+| Search within readings | Deferred | Basic search already functional in dashboard |
+| Export to Markdown | Deferred | Not prioritized for current release |
+| Sync conflict resolution | Deferred | Current merge-by-updatedAt strategy is sufficient; no conflicts observed |
+
+## Milestone 5: Future Enhancements (v0.4.0+)
 > Target: TBD
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Search within readings | Not started | |
-| Export to Markdown | Not started | |
-| Read/unread status | Not started | |
-| Per-reading notes | Not started | |
-| Sync conflict resolution improvements | Not started | |
+| Multi-line comment editor | Not started | Use webview or multi-line input for longer comments |
+| Comment history / versioning | Not started | Track comment edits over time |
+| Reading statistics dashboard | Not started | Charts showing read/unread ratio, readings per month, tag distribution |
+| Bulk operations | Not started | Mark multiple readings as read, bulk tagging |
+| Import from browser bookmarks | Not started | Import readings from Chrome/Firefox bookmark exports |
+| Keyboard shortcuts for status | Not started | Quick toggle read/unread without context menu |
 
 ## Known Issues
 - None yet (initial development)

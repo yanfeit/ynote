@@ -85,15 +85,25 @@ export class DashboardPanel {
         const tags = r.tags.length > 0
           ? `<div class="tags">${r.tags.map(t => `<span class="tag">${this.escapeHtml(t)}</span>`).join(' ')}</div>`
           : '';
+        const readBadge = r.isRead
+          ? '<span class="status-badge read">Read</span>'
+          : '<span class="status-badge unread">Unread</span>';
+        const commentSection = r.comment
+          ? `<div class="comment"><span class="comment-label">Comment:</span> ${this.escapeHtml(r.comment)}</div>`
+          : '';
 
         return `
-          <div class="card" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}">
+          <div class="card ${r.isRead ? 'card-read' : ''}" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}" data-comment="${this.escapeAttr(r.comment || '')}">
             <div class="card-header">
               <a href="#" class="title" onclick="openUrl('${this.escapeAttr(r.url)}')">${this.escapeHtml(r.title)}</a>
-              <span class="date">${date}</span>
+              <div class="card-header-right">
+                ${readBadge}
+                <span class="date">${date}</span>
+              </div>
             </div>
             ${meta ? `<div class="meta">${meta}</div>` : ''}
             ${r.abstract ? `<p class="abstract">${this.escapeHtml(r.abstract)}</p>` : ''}
+            ${commentSection}
             <div class="footer">
               <span class="source">${this.escapeHtml(r.source)}</span>
               ${tags}
@@ -177,6 +187,12 @@ export class DashboardPanel {
       gap: 12px;
       margin-bottom: 6px;
     }
+    .card-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
     .title {
       color: var(--vscode-textLink-foreground);
       text-decoration: none;
@@ -214,6 +230,37 @@ export class DashboardPanel {
       color: var(--vscode-badge-foreground);
       padding: 2px 8px;
       border-radius: 10px;
+    }
+    .status-badge {
+      font-size: 0.75em;
+      padding: 1px 8px;
+      border-radius: 8px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-badge.read {
+      background: var(--vscode-testing-iconPassed, #48a869);
+      color: #fff;
+    }
+    .status-badge.unread {
+      background: var(--vscode-editorWidget-border);
+      color: var(--vscode-foreground);
+    }
+    .card-read {
+      opacity: 0.75;
+    }
+    .comment {
+      margin: 6px 0 8px;
+      padding: 8px 12px;
+      background: var(--vscode-textBlockQuote-background, rgba(127,127,127,0.1));
+      border-left: 3px solid var(--vscode-textLink-foreground);
+      border-radius: 0 4px 4px 0;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+    .comment-label {
+      font-weight: 600;
+      color: var(--vscode-textLink-foreground);
     }
     .empty {
       text-align: center;
@@ -305,7 +352,8 @@ export class DashboardPanel {
             card.dataset.author,
             card.dataset.org,
             card.dataset.abstract,
-            card.dataset.tags
+            card.dataset.tags,
+            card.dataset.comment
           ].join(' ').toLowerCase();
           const visible = text.includes(q);
           card.style.display = visible ? '' : 'none';

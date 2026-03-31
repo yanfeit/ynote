@@ -72,6 +72,11 @@ export class JsonDb {
     return readings.find(r => r.url === url);
   }
 
+  async findById(id: string): Promise<Reading | undefined> {
+    const readings = await this.readAll();
+    return readings.find(r => r.id === id);
+  }
+
   async getAllTags(): Promise<string[]> {
     const readings = await this.readAll();
     const tagCounts = new Map<string, number>();
