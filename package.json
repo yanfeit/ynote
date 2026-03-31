@@ -2,7 +2,7 @@
   "name": "ynote",
   "displayName": "YNote - Reading Record",
   "description": "A private reading record system for recording daily reading material with abstracts and metadata.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "yanfeit",
   "extensionKind": [
     "workspace"

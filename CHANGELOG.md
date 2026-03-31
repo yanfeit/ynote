@@ -5,6 +5,15 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-03-31
+
+### Changed
+- Tag flow now always shows both recommended tags (QuickPick) and custom tag input, merging results with deduplication
+- Sidebar "Edit Tags" command re-fetches URL content for content-based tag suggestions instead of title-word splitting
+- Removed duplicate source badge from dashboard footer when source matches organization
+- Removed duplicate source detail from sidebar tree view when it matches organization
+- 40 unit tests passing
+
 ## [0.3.2] - 2026-03-31
 
 ### Changed

@@ -91,7 +91,7 @@ export function registerAddReadingCommand(
       }
     }
 
-    // Allow custom tags
+    // Always allow custom tags to be added alongside recommended ones
     const customTags = await vscode.window.showInputBox({
       prompt: 'Add custom tags (comma-separated, leave empty to skip)',
       placeHolder: 'e.g., machine-learning, transformer',

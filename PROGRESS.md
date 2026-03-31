@@ -41,7 +41,7 @@
 | Right dashboard year-month archiving | Done | Dashboard groups cards by YYYY-MM, latest month expanded, others collapsed |
 | Lightweight tag system | Done | Tag management via QuickPick UI with intelligent recommendations from existing tags and title keywords |
 
-## Milestone 4: Rich Text Comments (v0.3.1)
+## Milestone 4: Rich Text Comments & Tag Improvements (v0.3.3)
 > Target: 2026-03-31
 
 | Task | Status | Notes |
@@ -53,7 +53,13 @@
 | Save via button | Done | Toolbar Save button sends comment to extension backend |
 | Remove `toggleReadStatus` command | Done | Command and menu entry removed from package.json |
 | Remove `editComment` sidebar command | Done | Replaced by dashboard inline editor |
-| Update unit tests | Done | Removed 4 isRead tests, kept 5 comment tests (34 total) |
+| Content-based tag extraction | Done | Tags suggested from full article body text + meta keywords using word frequency analysis |
+| Tag flow: recommended + custom combined | Done | QuickPick for recommended tags, then input box for custom tags; both merged with dedup |
+| Sidebar editTags re-fetches content | Done | Re-fetches URL to provide content-based tag suggestions instead of title-word splitting |
+| List buttons merged into dropdown | Done | Bullet and numbered list buttons merged into single dropdown menu |
+| Comment displayed on card | Done | Comment preview visible on card face; click to edit; placeholder for empty comments |
+| Fix duplicate org/source display | Done | Source badge hidden when identical to organization in both dashboard and sidebar |
+| Update unit tests | Done | 40 tests passing (19 jsonDb + 21 metadataFetcher including 6 keyword extraction tests) |
 | Search within readings | Deferred | Basic search already functional in dashboard |
 | Export to Markdown | Deferred | Not prioritized for current release |
 | Sync conflict resolution | Deferred | Current merge-by-updatedAt strategy is sufficient; no conflicts observed |

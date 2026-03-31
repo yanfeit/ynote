@@ -93,6 +93,8 @@ export class DashboardPanel {
         const tags = r.tags.length > 0
           ? `<div class="tags">${r.tags.map(t => `<span class="tag">${this.escapeHtml(t)}</span>`).join(' ')}</div>`
           : '';
+        // Show source only if it differs from organization (avoid duplication)
+        const showSource = r.source && r.source !== r.organization;
         const hasComment = r.comment && r.comment.trim().length > 0;
         const commentPreview = hasComment
           ? `<div class="comment-preview"><span class="comment-label">💬 Note:</span> ${r.comment}</div>`
@@ -109,7 +111,7 @@ export class DashboardPanel {
             ${meta ? `<div class="meta">${meta}</div>` : ''}
             ${r.abstract ? `<p class="abstract">${this.escapeHtml(r.abstract)}</p>` : ''}
             <div class="footer">
-              <span class="source">${this.escapeHtml(r.source)}</span>
+              ${showSource ? `<span class="source">${this.escapeHtml(r.source)}</span>` : ''}
               ${tags}
             </div>
             ${commentPreview}

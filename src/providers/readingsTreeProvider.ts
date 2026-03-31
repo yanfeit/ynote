@@ -42,7 +42,7 @@ export class ReadingsTreeProvider implements vscode.TreeDataProvider<TreeElement
       if (r.author) { details.push(new ReadingDetail('Author', r.author)); }
       if (r.organization) { details.push(new ReadingDetail('Org', r.organization)); }
       if (r.abstract) { details.push(new ReadingDetail('Abstract', r.abstract)); }
-      if (r.source) { details.push(new ReadingDetail('Source', r.source)); }
+      if (r.source && r.source !== r.organization) { details.push(new ReadingDetail('Source', r.source)); }
       if (r.tags.length > 0) { details.push(new ReadingDetail('Tags', r.tags.join(', '))); }
       details.push(new ReadingDetail('URL', r.url));
       return details;

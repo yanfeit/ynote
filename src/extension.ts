@@ -5,6 +5,7 @@ import { ReadingsTreeProvider, ReadingItem } from './providers/readingsTreeProvi
 import { DashboardPanel } from './webview/DashboardPanel';
 import { registerAddReadingCommand } from './commands/addReading';
 import { registerSyncCommand } from './commands/syncToGithub';
+import { fetchMetadata } from './services/metadataFetcher';
 
 export function activate(context: vscode.ExtensionContext): void {
   const db = new JsonDb(context);
@@ -67,16 +68,24 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!item?.reading) { return; }
       const reading = item.reading;
 
+      // Re-fetch content-based tag suggestions from the URL
+      let suggestedTags: string[] = [];
+      try {
+        const result = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'YNote: Fetching content for tag suggestions...',
+            cancellable: false,
+          },
+          async () => fetchMetadata(reading.url)
+        );
+        suggestedTags = result.suggestedTags;
+      } catch {
+        // If fetch fails, continue without content-based suggestions
+      }
+
       // Get all existing tags for recommendations
       const allTags = await db.getAllTags();
-      // Extract keywords from title for smart suggestions
-      const titleWords = reading.title
-        .toLowerCase()
-        .split(/[\s\-_:,;.()\[\]{}|/\\]+/)
-        .filter(w => w.length > 2)
-        .filter(w => !['the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'has', 'how', 'what', 'why', 'new'].includes(w));
-
-      // Build pick items: existing tags first, then keyword suggestions
       const currentTags = new Set(reading.tags);
       const pickItems: vscode.QuickPickItem[] = [];
 
@@ -89,12 +98,12 @@ export function activate(context: vscode.ExtensionContext): void {
         });
       }
 
-      // Add keyword suggestions not already in existing tags
-      for (const word of titleWords) {
-        if (!allTags.some(t => t.toLowerCase() === word)) {
+      // Add content-based suggestions not already in existing tags
+      for (const suggested of suggestedTags) {
+        if (!allTags.some(t => t.toLowerCase() === suggested.toLowerCase())) {
           pickItems.push({
-            label: word,
-            description: '(suggested from title)',
+            label: suggested,
+            description: '(suggested from content)',
             picked: false,
           });
         }
