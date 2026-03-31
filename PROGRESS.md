@@ -31,12 +31,21 @@
 | CLAUDE.md framework diagram | Done | Data flow diagram + component table |
 | README.md install instructions | Done | .vsix install (GUI + CLI), build from source, Remote SSH/WSL |
 
-## Milestone 3: Enhanced Features (v0.2.0+)
+## Milestone 3: Enhanced Features (v0.2.0)
+> Target: 2026-04
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Basic exception handling for URL fetch | Done | Network timeout/error shows clear user-friendly prompt with "Save URL Only" fallback |
+| Left navigation bar year-month archiving | Done | Sidebar groups readings by YYYY-MM, click to expand/collapse |
+| Right dashboard year-month archiving | Done | Dashboard groups cards by YYYY-MM, latest month expanded, others collapsed |
+| Lightweight tag system | Done | Tag management via QuickPick UI with intelligent recommendations from existing tags and title keywords |
+
+## Milestone 4: Future Enhancements (v0.3.0+)
 > Target: TBD
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Tags and categories | Not started | |
 | Search within readings | Not started | |
 | Export to Markdown | Not started | |
 | Read/unread status | Not started | |

@@ -62,6 +62,73 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('ynote.refreshReadings', () => {
       onChanged();
     }),
+
+    vscode.commands.registerCommand('ynote.editTags', async (item: ReadingItem) => {
+      if (!item?.reading) { return; }
+      const reading = item.reading;
+
+      // Get all existing tags for recommendations
+      const allTags = await db.getAllTags();
+      // Extract keywords from title for smart suggestions
+      const titleWords = reading.title
+        .toLowerCase()
+        .split(/[\s\-_:,;.()\[\]{}|/\\]+/)
+        .filter(w => w.length > 2)
+        .filter(w => !['the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'has', 'how', 'what', 'why', 'new'].includes(w));
+
+      // Build pick items: existing tags first, then keyword suggestions
+      const currentTags = new Set(reading.tags);
+      const pickItems: vscode.QuickPickItem[] = [];
+
+      // Add existing tags (sorted by frequency)
+      for (const tag of allTags) {
+        pickItems.push({
+          label: tag,
+          description: currentTags.has(tag) ? '(current)' : '',
+          picked: currentTags.has(tag),
+        });
+      }
+
+      // Add keyword suggestions not already in existing tags
+      for (const word of titleWords) {
+        if (!allTags.some(t => t.toLowerCase() === word)) {
+          pickItems.push({
+            label: word,
+            description: '(suggested from title)',
+            picked: false,
+          });
+        }
+      }
+
+      const picks = await vscode.window.showQuickPick(pickItems, {
+        canPickMany: true,
+        placeHolder: 'Select tags or type to add new ones (press Enter to confirm)',
+        title: `Tags for "${reading.title}"`,
+      });
+
+      if (picks === undefined) { return; } // cancelled
+
+      let tags = picks.map(p => p.label);
+
+      // Allow adding a custom tag
+      const custom = await vscode.window.showInputBox({
+        prompt: 'Add custom tags (comma-separated, leave empty to skip)',
+        placeHolder: 'e.g., machine-learning, transformer',
+      });
+      if (custom) {
+        const customTags = custom.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        tags = [...new Set([...tags, ...customTags])];
+      }
+
+      try {
+        await db.update(reading.id, { tags });
+        onChanged();
+        vscode.window.showInformationMessage(`Tags updated for "${reading.title}"`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to update tags: ${message}`);
+      }
+    }),
   );
 }
 

@@ -65,6 +65,46 @@ export function registerAddReadingCommand(
 
     if (!title) { return; }
 
+    // Tag input with recommendations
+    const allTags = await db.getAllTags();
+    let tags: string[] = [];
+
+    if (allTags.length > 0) {
+      // Show existing tags for quick selection
+      const titleWords = title
+        .toLowerCase()
+        .split(/[\s\-_:,;.()\[\]{}|/\\]+/)
+        .filter((w: string) => w.length > 2)
+        .filter((w: string) => !['the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'has', 'how', 'what', 'why', 'new'].includes(w));
+
+      const pickItems: vscode.QuickPickItem[] = allTags.map(tag => ({ label: tag }));
+      // Add keyword suggestions from title
+      for (const word of titleWords) {
+        if (!allTags.some(t => t.toLowerCase() === word)) {
+          pickItems.push({ label: word, description: '(suggested)' });
+        }
+      }
+
+      const picks = await vscode.window.showQuickPick(pickItems, {
+        canPickMany: true,
+        placeHolder: 'Select tags (optional, press Enter to skip)',
+        title: 'Add tags',
+      });
+      if (picks) {
+        tags = picks.map(p => p.label);
+      }
+    }
+
+    // Allow custom tags
+    const customTags = await vscode.window.showInputBox({
+      prompt: 'Add custom tags (comma-separated, leave empty to skip)',
+      placeHolder: 'e.g., machine-learning, transformer',
+    });
+    if (customTags) {
+      const parsed = customTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+      tags = [...new Set([...tags, ...parsed])];
+    }
+
     const now = new Date().toISOString();
     const reading: Reading = {
       id: uuidv4(),
@@ -75,7 +115,7 @@ export function registerAddReadingCommand(
       abstract: metadata.abstract || '',
       addedAt: now,
       updatedAt: now,
-      tags: [],
+      tags,
       source: metadata.source || '',
     };
 

@@ -51,12 +51,14 @@ export async function fetchMetadata(url: string): Promise<Partial<Reading>> {
   } catch (err: unknown) {
     let userMessage: string;
     if (axios.isAxiosError(err)) {
-      if (err.code === 'ECONNABORTED') {
-        userMessage = `Request timed out after ${timeout}ms. The site may be slow or unreachable.`;
+      if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+        userMessage = `Request timed out after ${timeout / 1000}s. The site may be slow or unreachable.`;
       } else if (err.code === 'ENOTFOUND') {
         userMessage = `Could not resolve hostname. Check the URL or your network connection.`;
       } else if (err.code === 'ECONNREFUSED') {
         userMessage = `Connection refused by the server.`;
+      } else if (err.code === 'ECONNRESET') {
+        userMessage = `Connection was reset. The server may have dropped the connection.`;
       } else if (err.response) {
         userMessage = `Server returned HTTP ${err.response.status} (${err.response.statusText || 'error'}).`;
       } else {
@@ -65,7 +67,7 @@ export async function fetchMetadata(url: string): Promise<Partial<Reading>> {
     } else {
       userMessage = err instanceof Error ? err.message : String(err);
     }
-    return { url, source, title: url, author: '', organization: source, abstract: `Failed to fetch: ${userMessage}` };
+    throw new Error(userMessage);
   }
 
   const $ = cheerio.load(html);

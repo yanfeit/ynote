@@ -1,5 +1,11 @@
 # YNote — Reading Record for VS Code
 
+## Design Principles
+
+Researchers track the progress of their peers through literature review, and literature management tools have emerged as a targeted solution to systematically address the pain points of collecting, organizing, and retrieving academic literature. For modern developers — especially those working in the artificial intelligence (AI) field — they routinely obtain fragmented updates on cutting-edge industry trends, technical solutions, and open-source project information through multiple channels, including official announcements, WeChat Official Account articles, technical blogs, X (formerly Twitter), and GitHub repositories. Yet they have long lacked a dedicated information management tool that is lightweight and tailored to developers' usage habits.
+
+YNote is a lightweight note-taking plugin for information management built for developers (especially AI practitioners). It focuses on the full lifecycle management of fragmented industry information, providing users with one-stop capabilities for information collection, structured organization, and efficient indexed retrieval.
+
 A private reading record system built as a VS Code extension. Paste a URL, auto-extract metadata (title, author, organization, abstract), and store it in a searchable, syncable database.
 
 ## Features

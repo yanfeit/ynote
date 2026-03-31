@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { JsonDb } from '../database/jsonDb';
 import { Reading } from '../models/reading';
 
-type TreeElement = ReadingItem | ReadingDetail;
+type TreeElement = YearMonthGroup | ReadingItem | ReadingDetail;
 
 export class ReadingsTreeProvider implements vscode.TreeDataProvider<TreeElement> {
   private _onDidChangeTreeData = new vscode.EventEmitter<TreeElement | undefined | null | void>();
@@ -19,7 +19,21 @@ export class ReadingsTreeProvider implements vscode.TreeDataProvider<TreeElement
   async getChildren(element?: TreeElement): Promise<TreeElement[]> {
     if (!element) {
       this.readings = await this.db.getAll();
-      return this.readings.map(r => new ReadingItem(r));
+      // Group by year-month
+      const groups = new Map<string, Reading[]>();
+      for (const r of this.readings) {
+        const d = new Date(r.addedAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!groups.has(key)) { groups.set(key, []); }
+        groups.get(key)!.push(r);
+      }
+      // Sort year-month keys descending (newest first)
+      const sortedKeys = [...groups.keys()].sort((a, b) => b.localeCompare(a));
+      return sortedKeys.map(key => new YearMonthGroup(key, groups.get(key)!));
+    }
+
+    if (element instanceof YearMonthGroup) {
+      return element.readings.map(r => new ReadingItem(r));
     }
 
     if (element instanceof ReadingItem) {
@@ -29,6 +43,7 @@ export class ReadingsTreeProvider implements vscode.TreeDataProvider<TreeElement
       if (r.organization) { details.push(new ReadingDetail('Org', r.organization)); }
       if (r.abstract) { details.push(new ReadingDetail('Abstract', r.abstract)); }
       if (r.source) { details.push(new ReadingDetail('Source', r.source)); }
+      if (r.tags.length > 0) { details.push(new ReadingDetail('Tags', r.tags.join(', '))); }
       details.push(new ReadingDetail('URL', r.url));
       return details;
     }
@@ -38,6 +53,19 @@ export class ReadingsTreeProvider implements vscode.TreeDataProvider<TreeElement
 
   getTreeItem(element: TreeElement): vscode.TreeItem {
     return element;
+  }
+}
+
+class YearMonthGroup extends vscode.TreeItem {
+  constructor(
+    public readonly yearMonth: string,
+    public readonly readings: Reading[]
+  ) {
+    super(yearMonth, vscode.TreeItemCollapsibleState.Collapsed);
+    this.description = `${readings.length} reading${readings.length !== 1 ? 's' : ''}`;
+    this.tooltip = `Readings added in ${yearMonth}`;
+    this.contextValue = 'yearMonthGroup';
+    this.iconPath = new vscode.ThemeIcon('calendar');
   }
 }
 
@@ -66,6 +94,8 @@ class ReadingDetail extends vscode.TreeItem {
       this.iconPath = new vscode.ThemeIcon('organization');
     } else if (label === 'Abstract') {
       this.iconPath = new vscode.ThemeIcon('note');
+    } else if (label === 'Tags') {
+      this.iconPath = new vscode.ThemeIcon('tag');
     } else {
       this.iconPath = new vscode.ThemeIcon('info');
     }

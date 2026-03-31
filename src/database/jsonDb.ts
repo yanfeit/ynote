@@ -72,6 +72,20 @@ export class JsonDb {
     return readings.find(r => r.url === url);
   }
 
+  async getAllTags(): Promise<string[]> {
+    const readings = await this.readAll();
+    const tagCounts = new Map<string, number>();
+    for (const r of readings) {
+      for (const t of r.tags) {
+        tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
+      }
+    }
+    // Sort tags by usage frequency (most used first)
+    return [...tagCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => tag);
+  }
+
   getDbPath(): string {
     return this.dbPath;
   }
