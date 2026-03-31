@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { v4 as uuidv4 } from 'uuid';
 import { JsonDb } from '../database/jsonDb';
-import { fetchMetadata } from '../services/metadataFetcher';
+import { fetchMetadata, FetchResult } from '../services/metadataFetcher';
 import { Reading } from '../models/reading';
 
 export function registerAddReadingCommand(
@@ -36,8 +36,9 @@ export function registerAddReadingCommand(
 
     // Fetch metadata with progress
     let metadata: Partial<Reading>;
+    let suggestedTags: string[] = [];
     try {
-      metadata = await vscode.window.withProgress(
+      const result: FetchResult = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
           title: 'YNote: Fetching metadata...',
@@ -45,6 +46,8 @@ export function registerAddReadingCommand(
         },
         async () => fetchMetadata(url)
       );
+      metadata = result.metadata;
+      suggestedTags = result.suggestedTags;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const action = await vscode.window.showErrorMessage(
@@ -69,22 +72,15 @@ export function registerAddReadingCommand(
     const allTags = await db.getAllTags();
     let tags: string[] = [];
 
-    if (allTags.length > 0) {
-      // Show existing tags for quick selection
-      const titleWords = title
-        .toLowerCase()
-        .split(/[\s\-_:,;.()\[\]{}|/\\]+/)
-        .filter((w: string) => w.length > 2)
-        .filter((w: string) => !['the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'has', 'how', 'what', 'why', 'new'].includes(w));
-
-      const pickItems: vscode.QuickPickItem[] = allTags.map(tag => ({ label: tag }));
-      // Add keyword suggestions from title
-      for (const word of titleWords) {
-        if (!allTags.some(t => t.toLowerCase() === word)) {
-          pickItems.push({ label: word, description: '(suggested)' });
-        }
+    // Build pick items: existing tags first, then content-based suggestions
+    const pickItems: vscode.QuickPickItem[] = allTags.map(tag => ({ label: tag }));
+    for (const suggested of suggestedTags) {
+      if (!allTags.some(t => t.toLowerCase() === suggested.toLowerCase())) {
+        pickItems.push({ label: suggested, description: '(suggested from content)' });
       }
+    }
 
+    if (pickItems.length > 0) {
       const picks = await vscode.window.showQuickPick(pickItems, {
         canPickMany: true,
         placeHolder: 'Select tags (optional, press Enter to skip)',

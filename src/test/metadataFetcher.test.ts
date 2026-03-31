@@ -1,5 +1,17 @@
 import * as assert from 'assert';
+import * as Module from 'module';
+
+// Mock vscode module before importing metadataFetcher
+const originalRequire = Module.prototype.require;
+Module.prototype.require = function (id: string) {
+  if (id === 'vscode') {
+    return require('./mock/vscode');
+  }
+  return originalRequire.apply(this, arguments as any);
+};
+
 import * as cheerio from 'cheerio';
+import { extractContentKeywords } from '../services/metadataFetcher';
 
 // We test the HTML parsing logic directly by importing the internal helpers.
 // Since extractFromHtml is not exported, we test via the public fetchMetadata
@@ -184,6 +196,77 @@ describe('Metadata Extraction Patterns', () => {
         domain = '';
       }
       assert.strictEqual(domain, '');
+    });
+  });
+
+  describe('Content keyword extraction', () => {
+    it('extracts frequent words from article body', () => {
+      const html = `<html><body><article>
+        <p>Machine learning models are transforming natural language processing.
+        Deep learning approaches enable better language understanding.
+        Neural network models trained on large datasets achieve state-of-the-art results.
+        Machine learning continues to advance rapidly in language tasks.</p>
+      </article></body></html>`;
+      const $ = cheerio.load(html);
+      const keywords = extractContentKeywords($, 'Advances in Machine Learning');
+      assert.ok(keywords.includes('machine'), 'should include "machine"');
+      assert.ok(keywords.includes('learning'), 'should include "learning"');
+      assert.ok(keywords.includes('language'), 'should include "language"');
+    });
+
+    it('filters out stopwords', () => {
+      const html = `<html><body><article>
+        <p>The model was trained with the dataset and the results were evaluated.
+        The performance was measured and the accuracy was reported.
+        The system and the framework were tested and validated.</p>
+      </article></body></html>`;
+      const $ = cheerio.load(html);
+      const keywords = extractContentKeywords($, 'Test Article');
+      assert.ok(!keywords.includes('the'), 'should not include "the"');
+      assert.ok(!keywords.includes('and'), 'should not include "and"');
+      assert.ok(!keywords.includes('was'), 'should not include "was"');
+    });
+
+    it('extracts keywords from meta keywords tag', () => {
+      const html = `<html><head>
+        <meta name="keywords" content="artificial intelligence, deep learning, NLP">
+      </head><body><p>Short content.</p></body></html>`;
+      const $ = cheerio.load(html);
+      const keywords = extractContentKeywords($, 'AI Article');
+      assert.ok(keywords.includes('artificial intelligence'), 'should include "artificial intelligence"');
+      assert.ok(keywords.includes('deep learning'), 'should include "deep learning"');
+    });
+
+    it('ignores script and style content', () => {
+      const html = `<html><body>
+        <script>var tracking = "analytics analytics analytics analytics";</script>
+        <style>.analytics { color: red; }</style>
+        <article>
+          <p>Transformer architecture enables efficient parallel processing.
+          Transformer models scale well for large datasets.
+          Attention mechanism is key to transformer performance.</p>
+        </article>
+      </body></html>`;
+      const $ = cheerio.load(html);
+      const keywords = extractContentKeywords($, 'Transformers');
+      assert.ok(keywords.includes('transformer'), 'should include "transformer"');
+      assert.ok(!keywords.includes('analytics'), 'should not include script content');
+    });
+
+    it('returns empty array for pages with no meaningful content', () => {
+      const html = `<html><body><p>Hi.</p></body></html>`;
+      const $ = cheerio.load(html);
+      const keywords = extractContentKeywords($, '');
+      assert.ok(Array.isArray(keywords));
+    });
+
+    it('limits results to at most 15 keywords', () => {
+      const words = Array.from({length: 30}, (_, i) => `keyword${i}`);
+      const repeated = words.map(w => `${w} ${w} ${w}`).join('. ');
+      const html = `<html><body><article><p>${repeated}</p></article></body></html>`;
+      const $ = cheerio.load(html);
+      const keywords = extractContentKeywords($, 'Test');
+      assert.ok(keywords.length <= 15, `Expected at most 15 keywords, got ${keywords.length}`);
     });
   });
 });

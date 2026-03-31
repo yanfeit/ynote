@@ -5,6 +5,18 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-03-31
+
+### Changed
+- Tag suggestions now extracted from full article content (body text + meta keywords) using word frequency analysis, instead of just title keywords
+- Tag quick-pick now shows content-based suggestions even when no existing tags are saved
+- Merged bullet list and numbered list toolbar buttons into a single "List" dropdown menu in the comment editor
+- Comments are now displayed directly on each dashboard card (visible without clicking)
+- Clicking a card opens the rich text editor pre-filled with the existing comment; comment preview hides while editing
+- Save button updates the on-card comment preview immediately
+- "Click to add a note..." placeholder shown on cards without comments
+- 40 unit tests passing (added 6 content keyword extraction tests)
+
 ## [0.3.1] - 2026-03-31
 
 ### Removed

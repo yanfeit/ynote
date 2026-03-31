@@ -9,6 +9,7 @@ interface ExtractedMetadata {
   organization: string;
   abstract: string;
   source: string;
+  suggestedTags: string[];
 }
 
 function extractDomain(url: string): string {
@@ -29,7 +30,12 @@ function cleanText(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-export async function fetchMetadata(url: string): Promise<Partial<Reading>> {
+export interface FetchResult {
+  metadata: Partial<Reading>;
+  suggestedTags: string[];
+}
+
+export async function fetchMetadata(url: string): Promise<FetchResult> {
   const config = vscode.workspace.getConfiguration('ynote');
   const timeout = config.get<number>('fetchTimeout', 10000);
   const maxAbstract = config.get<number>('maxAbstractLength', 500);
@@ -74,12 +80,15 @@ export async function fetchMetadata(url: string): Promise<Partial<Reading>> {
   const metadata = extractFromHtml($, maxAbstract, fallbackLen, source);
 
   return {
-    url,
-    title: metadata.title || url,
-    author: metadata.author,
-    organization: metadata.organization,
-    abstract: metadata.abstract,
-    source,
+    metadata: {
+      url,
+      title: metadata.title || url,
+      author: metadata.author,
+      organization: metadata.organization,
+      abstract: metadata.abstract,
+      source,
+    },
+    suggestedTags: metadata.suggestedTags,
   };
 }
 
@@ -131,7 +140,7 @@ function extractFromHtml(
       : '';
   }
 
-  return { title, author, organization, abstract, source };
+  return { title, author, organization, abstract, source, suggestedTags: extractContentKeywords($, title) };
 }
 
 function getMeta($: cheerio.CheerioAPI, property: string): string {
@@ -184,4 +193,84 @@ function extractByline($: cheerio.CheerioAPI): string {
     }
   }
   return '';
+}
+
+const STOP_WORDS = new Set([
+  'the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'has',
+  'how', 'what', 'why', 'new', 'you', 'your', 'our', 'their', 'its', 'can',
+  'will', 'not', 'but', 'all', 'more', 'also', 'been', 'have', 'had', 'were',
+  'which', 'when', 'where', 'who', 'than', 'then', 'them', 'they', 'these',
+  'those', 'other', 'into', 'about', 'would', 'could', 'should', 'does',
+  'did', 'just', 'only', 'some', 'such', 'each', 'very', 'much', 'most',
+  'well', 'here', 'there', 'both', 'between', 'after', 'before', 'over',
+  'under', 'through', 'during', 'while', 'being', 'same', 'make', 'like',
+  'use', 'used', 'using', 'one', 'two', 'first', 'last', 'even', 'may',
+  'many', 'any', 'own', 'get', 'set', 'out', 'way', 'need', 'see', 'part',
+  'take', 'come', 'want', 'let', 'say', 'know', 'work', 'still', 'back',
+  'made', 'find', 'give', 'look', 'help', 'tell', 'keep', 'think', 'show',
+  'try', 'ask', 'call', 'turn', 'hand', 'said', 'able', 'read', 'must',
+  'open', 'however', 'without', 'since', 'because', 'against', 'around',
+  'end', 'per', 'based', 'given', 'upon', 'different', 'every', 'another',
+]);
+
+export function extractContentKeywords($: cheerio.CheerioAPI, title: string): string[] {
+  // Remove non-content elements
+  const clone = $.root().clone();
+  clone.find('script, style, nav, footer, header, aside, .sidebar, .menu, .nav, .footer, .header, .advertisement, .ad').remove();
+
+  // Extract text from article body, main content, or full body
+  let bodyText = '';
+  const contentSelectors = ['article', 'main', '.content', '.post-content', '.article-body', '.entry-content'];
+  for (const sel of contentSelectors) {
+    const text = cleanText(clone.find(sel).text());
+    if (text.length > 100) {
+      bodyText = text;
+      break;
+    }
+  }
+  if (!bodyText) {
+    bodyText = cleanText(clone.find('body').text());
+  }
+
+  // Also extract keywords from meta tags
+  const metaKeywords = (
+    $('meta[name="keywords"]').attr('content') ||
+    $('meta[name="news_keywords"]').attr('content') ||
+    ''
+  );
+
+  // Combine title + body + meta keywords
+  const combinedText = `${title} ${title} ${metaKeywords} ${bodyText}`.toLowerCase();
+
+  // Tokenize: split on non-alphanumeric (keep hyphens within words)
+  const words = combinedText
+    .split(/[^a-z0-9\-]+/)
+    .filter(w => w.length > 2 && w.length < 30)
+    .filter(w => !STOP_WORDS.has(w))
+    .filter(w => !/^\d+$/.test(w)); // exclude pure numbers
+
+  // Count frequencies
+  const freq = new Map<string, number>();
+  for (const w of words) {
+    freq.set(w, (freq.get(w) || 0) + 1);
+  }
+
+  // Sort by frequency, take top keywords that appear at least twice
+  const sorted = [...freq.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([word]) => word);
+
+  // Also add meta keywords split by comma
+  if (metaKeywords) {
+    const metaTags = metaKeywords.split(/[,;]+/).map(t => t.trim().toLowerCase()).filter(t => t.length > 1 && t.length < 30);
+    for (const tag of metaTags) {
+      if (!sorted.includes(tag)) {
+        sorted.push(tag);
+      }
+    }
+  }
+
+  return sorted.slice(0, 15);
 }

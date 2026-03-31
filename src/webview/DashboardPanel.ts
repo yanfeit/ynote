@@ -94,14 +94,15 @@ export class DashboardPanel {
           ? `<div class="tags">${r.tags.map(t => `<span class="tag">${this.escapeHtml(t)}</span>`).join(' ')}</div>`
           : '';
         const hasComment = r.comment && r.comment.trim().length > 0;
-        const commentIndicator = hasComment ? '<span class="comment-indicator" title="Has comment">💬</span>' : '';
+        const commentPreview = hasComment
+          ? `<div class="comment-preview"><span class="comment-label">💬 Note:</span> ${r.comment}</div>`
+          : `<div class="comment-preview comment-placeholder">Click to add a note...</div>`;
 
         return `
           <div class="card" data-id="${this.escapeAttr(r.id)}" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}" data-comment="${this.escapeAttr(r.comment || '')}">
             <div class="card-header">
               <a href="#" class="title" onclick="event.stopPropagation(); openUrl('${this.escapeAttr(r.url)}')">${this.escapeHtml(r.title)}</a>
               <div class="card-header-right">
-                ${commentIndicator}
                 <span class="date">${date}</span>
               </div>
             </div>
@@ -111,13 +112,19 @@ export class DashboardPanel {
               <span class="source">${this.escapeHtml(r.source)}</span>
               ${tags}
             </div>
+            ${commentPreview}
             <div class="comment-panel" style="display: none;">
               <div class="comment-toolbar">
                 <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('bold')" title="Bold (Ctrl+B)"><b>B</b></button>
                 <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('italic')" title="Italic (Ctrl+I)"><i>I</i></button>
                 <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('strikeThrough')" title="Strikethrough"><s>S</s></button>
-                <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('insertUnorderedList')" title="Bullet list">•&thinsp;List</button>
-                <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); execFormat('insertOrderedList')" title="Numbered list">1.&thinsp;List</button>
+                <div class="list-dropdown" onclick="event.stopPropagation()">
+                  <button type="button" class="toolbar-btn" onclick="event.stopPropagation(); toggleListDropdown(this)" title="Insert list">☰ List ▾</button>
+                  <div class="list-dropdown-menu" style="display: none;">
+                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); execFormat('insertUnorderedList'); closeListDropdown(this)">• Bullet list</button>
+                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); execFormat('insertOrderedList'); closeListDropdown(this)">1. Numbered list</button>
+                  </div>
+                </div>
                 <button type="button" class="toolbar-btn save-btn" onclick="event.stopPropagation(); saveComment(this)" title="Save comment">Save</button>
               </div>
               <div class="comment-editor" contenteditable="true" onclick="event.stopPropagation()">${r.comment || ''}</div>
@@ -216,9 +223,6 @@ export class DashboardPanel {
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
-    }
-    .comment-indicator {
-      font-size: 0.85em;
     }
     .title {
       color: var(--vscode-textLink-foreground);
@@ -372,6 +376,66 @@ export class DashboardPanel {
     .comment-editor b, .comment-editor strong { font-weight: 700; }
     .comment-editor i, .comment-editor em { font-style: italic; }
     .comment-editor s, .comment-editor strike { text-decoration: line-through; }
+    /* Comment preview on card */
+    .comment-preview {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-top: 1px solid var(--vscode-editorWidget-border);
+      font-size: 0.9em;
+      line-height: 1.5;
+      color: var(--vscode-foreground);
+      max-height: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .comment-preview.comment-placeholder {
+      color: var(--vscode-descriptionForeground);
+      font-style: italic;
+      font-size: 0.85em;
+    }
+    .comment-label {
+      font-weight: 600;
+      font-size: 0.9em;
+    }
+    .comment-preview ul, .comment-preview ol {
+      margin: 2px 0;
+      padding-left: 18px;
+    }
+    .comment-preview b, .comment-preview strong { font-weight: 700; }
+    .comment-preview i, .comment-preview em { font-style: italic; }
+    .comment-preview s, .comment-preview strike { text-decoration: line-through; }
+    /* List dropdown */
+    .list-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .list-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 100;
+      background: var(--vscode-editorWidget-background);
+      border: 1px solid var(--vscode-editorWidget-border);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      min-width: 140px;
+      padding: 4px 0;
+    }
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 6px 12px;
+      background: none;
+      border: none;
+      color: var(--vscode-foreground);
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+      text-align: left;
+      cursor: pointer;
+    }
+    .dropdown-item:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
   </style>
 </head>
 <body>
@@ -401,24 +465,45 @@ export class DashboardPanel {
     }
     function toggleComment(card) {
       const panel = card.querySelector('.comment-panel');
+      const preview = card.querySelector('.comment-preview');
       const isVisible = panel.style.display !== 'none';
       // Close all other open comment panels
       document.querySelectorAll('.card').forEach(c => {
         const p = c.querySelector('.comment-panel');
+        const pr = c.querySelector('.comment-preview');
         if (p && c !== card) {
           p.style.display = 'none';
+          if (pr) { pr.style.display = ''; }
           c.classList.remove('expanded');
         }
       });
       if (isVisible) {
         panel.style.display = 'none';
+        if (preview) { preview.style.display = ''; }
         card.classList.remove('expanded');
       } else {
         panel.style.display = 'block';
+        if (preview) { preview.style.display = 'none'; }
         card.classList.add('expanded');
         card.querySelector('.comment-editor').focus();
       }
     }
+    function toggleListDropdown(btn) {
+      const menu = btn.parentElement.querySelector('.list-dropdown-menu');
+      const isOpen = menu.style.display !== 'none';
+      // Close all dropdowns first
+      document.querySelectorAll('.list-dropdown-menu').forEach(m => m.style.display = 'none');
+      menu.style.display = isOpen ? 'none' : 'block';
+    }
+    function closeListDropdown(item) {
+      item.closest('.list-dropdown-menu').style.display = 'none';
+    }
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.list-dropdown')) {
+        document.querySelectorAll('.list-dropdown-menu').forEach(m => m.style.display = 'none');
+      }
+    });
     function execFormat(cmd) {
       document.execCommand(cmd, false, null);
       // Re-focus the editor that's currently visible
@@ -432,19 +517,14 @@ export class DashboardPanel {
       const comment = editor.innerHTML.trim();
       // Update the data attribute so search picks it up
       card.dataset.comment = comment;
-      // Update the comment indicator
-      const headerRight = card.querySelector('.card-header-right');
-      let indicator = headerRight.querySelector('.comment-indicator');
+      // Update the comment preview on the card
+      const preview = card.querySelector('.comment-preview');
       if (comment && comment !== '<br>') {
-        if (!indicator) {
-          indicator = document.createElement('span');
-          indicator.className = 'comment-indicator';
-          indicator.title = 'Has comment';
-          indicator.textContent = '💬';
-          headerRight.insertBefore(indicator, headerRight.firstChild);
-        }
+        preview.innerHTML = '<span class="comment-label">💬 Note:</span> ' + comment;
+        preview.classList.remove('comment-placeholder');
       } else {
-        if (indicator) { indicator.remove(); }
+        preview.innerHTML = 'Click to add a note...';
+        preview.classList.add('comment-placeholder');
       }
       vscode.postMessage({ command: 'saveComment', id: id, comment: comment });
     }
