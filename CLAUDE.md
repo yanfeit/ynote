@@ -54,12 +54,12 @@ YNote is a lightweight note-taking plugin for information management built for d
 | Component | File | Role |
 |-----------|------|------|
 | **Entry point** | `extension.ts` | Registers commands, tree view, wires dependencies |
-| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags, comment) |
+| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags, source, comment as HTML) |
 | **Database** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL |
 | **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio |
 | **Sync** | `services/gitSync.ts` | Clone, pull, merge, commit, push via git CLI |
 | **Add command** | `commands/addReading.ts` | URL input → fetch → confirm → save → refresh UI |
-| **Sync command** | `commands/syncToGithub.ts` | Trigger sync with progress + error UI |
+| **Sync commands** | `commands/syncToGithub.ts` | Push/pull with progress + error UI (buttons in Dashboard) |
 | **Tree view** | `providers/readingsTreeProvider.ts` | Sidebar list with expandable details |
 | **Dashboard** | `webview/DashboardPanel.ts` | HTML card layout with inline search |
 
@@ -92,13 +92,11 @@ src/
 │   └── gitSync.ts            # Git CLI wrapper for GitHub sync
 ├── commands/
 │   ├── addReading.ts         # Add reading from URL
-│   └── syncToGithub.ts       # Trigger git sync
+│   └── syncToGithub.ts       # Push & pull sync commands
 ├── providers/
 │   └── readingsTreeProvider.ts  # Sidebar tree view data provider
 └── webview/
-    ├── DashboardPanel.ts     # Webview panel lifecycle
-    ├── dashboard.html        # Dashboard UI template
-    └── dashboard.css         # Dashboard styles
+    └── DashboardPanel.ts     # Webview panel lifecycle (HTML/CSS inline)
 ```
 
 ## Build & Development Commands
@@ -128,7 +126,7 @@ npx @vscode/vsce package   # Produces .vsix file
 
 ## Design Decisions
 1. **JSON over SQLite** — git-friendly diffs, human-readable, sufficient for personal use (<5K records)
-2. **Manual sync over auto-sync** — user triggers `ynote.syncToGithub` explicitly, no surprise pushes
+2. **Manual sync over auto-sync** — user triggers push/pull explicitly from the Dashboard, no surprise syncs
 3. **Git CLI over GitHub API** — simpler implementation, leverages existing user git auth (SSH/credential helper)
 4. **cheerio over puppeteer** — lightweight (~50KB vs ~300MB), sufficient for `<meta>` tag extraction
 5. **globalStorageUri** — VS Code managed path, safe across OS, survives extension updates
@@ -148,7 +146,8 @@ npx @vscode/vsce package   # Produces .vsix file
 | `ynote.removeReading` | — | Remove selected reading |
 | `ynote.openReading` | — | Open URL in browser |
 | `ynote.showDashboard` | — | Open webview dashboard |
-| `ynote.syncToGithub` | — | Commit and push to GitHub |
+| `ynote.syncToGithub` | — | Push readings to GitHub |
+| `ynote.pullFromGithub` | — | Pull readings from GitHub |
 | `ynote.refreshReadings` | — | Refresh tree view |
 | `ynote.editTags` | — | Edit tags on a reading |
 
