@@ -106,7 +106,9 @@ See [release checklist](./references/release-checklist.md) for the full process.
 npm run compile && npm test
 npx @vscode/vsce package
 # 4. Commit, tag, push
-git add -A && git commit -m "v0.x.y: description"
+git add -A && git commit -m "v0.x.y: description
+
+Co-authored-by: Claude Code <noreply@anthropic.com>"
 git tag v0.x.y
 git push origin main --tags
 ```
