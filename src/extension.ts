@@ -4,7 +4,7 @@ import { GitSync } from './services/gitSync';
 import { ReadingsTreeProvider, ReadingItem } from './providers/readingsTreeProvider';
 import { DashboardPanel } from './webview/DashboardPanel';
 import { registerAddReadingCommand } from './commands/addReading';
-import { registerSyncCommand } from './commands/syncToGithub';
+import { registerSyncCommand, registerPullCommand } from './commands/syncToGithub';
 import { fetchMetadata } from './services/metadataFetcher';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -30,6 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     registerAddReadingCommand(context, db, onChanged),
     registerSyncCommand(context, db, gitSync, onChanged),
+    registerPullCommand(context, db, gitSync, onChanged),
 
     vscode.commands.registerCommand('ynote.removeReading', async (item: ReadingItem) => {
       if (!item?.reading) { return; }

@@ -43,8 +43,13 @@
       },
       {
         "command": "ynote.syncToGithub",
-        "title": "YNote: Sync to GitHub",
-        "icon": "$(sync)"
+        "title": "YNote: Push to GitHub",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "ynote.pullFromGithub",
+        "title": "YNote: Pull from GitHub",
+        "icon": "$(cloud-download)"
       },
       {
         "command": "ynote.refreshReadings",
@@ -85,11 +90,6 @@
         },
         {
           "command": "ynote.refreshReadings",
-          "when": "view == ynoteReadings",
-          "group": "navigation"
-        },
-        {
-          "command": "ynote.syncToGithub",
           "when": "view == ynoteReadings",
           "group": "navigation"
         },

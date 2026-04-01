@@ -65,16 +65,7 @@ export class GitSync {
     const syncDbPath = path.join(this.syncDir, 'readings.json');
 
     // Pull latest from remote first
-    try {
-      await this.git(['pull', '--rebase', 'origin', 'main']);
-    } catch {
-      // Might fail if no remote commits yet or branch doesn't exist; that's okay
-      try {
-        await this.git(['pull', '--rebase', 'origin', 'master']);
-      } catch {
-        // First push scenario — no remote branch yet
-      }
-    }
+    await this.pullRemote();
 
     // Merge: if remote has a readings.json, merge with local
     const localReadings = await this.readJsonSafe(dbPath);
@@ -98,7 +89,48 @@ export class GitSync {
     }
 
     await this.git(['push', 'origin', 'HEAD']);
-    return `Synced ${merged.length} readings to GitHub.`;
+    return `Pushed ${merged.length} readings to GitHub.`;
+  }
+
+  async pull(dbPath: string): Promise<string> {
+    const repoUrl = this.getRepoUrl();
+    if (!repoUrl) {
+      throw new Error('GitHub repo URL not configured. Set ynote.githubRepoUrl in settings.');
+    }
+
+    // Ensure repo is set up
+    if (!(await this.isSetup())) {
+      await this.setup();
+    }
+
+    const syncDbPath = path.join(this.syncDir, 'readings.json');
+
+    // Pull latest from remote
+    await this.pullRemote();
+
+    // Merge remote into local
+    const localReadings = await this.readJsonSafe(dbPath);
+    const remoteReadings = await this.readJsonSafe(syncDbPath);
+    const merged = this.mergeReadings(localReadings, remoteReadings);
+
+    // Write merged data to local only
+    const mergedJson = JSON.stringify(merged, null, 2);
+    await fs.promises.writeFile(dbPath, mergedJson, 'utf-8');
+
+    return `Pulled ${merged.length} readings from GitHub.`;
+  }
+
+  private async pullRemote(): Promise<void> {
+    try {
+      await this.git(['pull', '--rebase', 'origin', 'main']);
+    } catch {
+      // Might fail if no remote commits yet or branch doesn't exist; that's okay
+      try {
+        await this.git(['pull', '--rebase', 'origin', 'master']);
+      } catch {
+        // First push scenario — no remote branch yet
+      }
+    }
   }
 
   private async readJsonSafe(filePath: string): Promise<Array<Record<string, unknown>>> {

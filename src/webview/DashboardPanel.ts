@@ -29,6 +29,10 @@ export class DashboardPanel {
             const message = err instanceof Error ? err.message : String(err);
             vscode.window.showErrorMessage(`Failed to save comment: ${message}`);
           }
+        } else if (msg.command === 'pushToGithub') {
+          await vscode.commands.executeCommand('ynote.syncToGithub');
+        } else if (msg.command === 'pullFromGithub') {
+          await vscode.commands.executeCommand('ynote.pullFromGithub');
         }
       },
       null,
@@ -177,6 +181,27 @@ export class DashboardPanel {
     .count {
       color: var(--vscode-descriptionForeground);
       font-size: 0.9em;
+    }
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+    }
+    .header-btn {
+      background: var(--vscode-button-secondaryBackground, rgba(127,127,127,0.2));
+      color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+      border: 1px solid var(--vscode-editorWidget-border);
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-family: var(--vscode-font-family);
+      font-size: 0.85em;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .header-btn:hover {
+      background: var(--vscode-button-secondaryHoverBackground, rgba(127,127,127,0.35));
     }
     .search-bar {
       width: 100%;
@@ -444,6 +469,10 @@ export class DashboardPanel {
   <div class="header">
     <h1>YNote Readings</h1>
     <span class="count">${readings.length} reading${readings.length !== 1 ? 's' : ''}</span>
+    <div class="header-actions">
+      <button class="header-btn" onclick="pullFromGithub()" title="Pull readings from GitHub">⬇ Pull</button>
+      <button class="header-btn" onclick="pushToGithub()" title="Push readings to GitHub">⬆ Push</button>
+    </div>
   </div>
   <input class="search-bar" type="text" placeholder="Search by title, author, tag, or keyword..." oninput="filterCards(this.value)">
   <div class="cards">
@@ -453,6 +482,12 @@ export class DashboardPanel {
     const vscode = acquireVsCodeApi();
     function openUrl(url) {
       vscode.postMessage({ command: 'openUrl', url: url });
+    }
+    function pushToGithub() {
+      vscode.postMessage({ command: 'pushToGithub' });
+    }
+    function pullFromGithub() {
+      vscode.postMessage({ command: 'pullFromGithub' });
     }
     function toggleSection(header) {
       const body = header.nextElementSibling;
