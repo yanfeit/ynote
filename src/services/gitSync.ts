@@ -143,6 +143,8 @@ export class GitSync {
       return dateB - dateA;
     });
 
+    // Ensure the parent directory exists (may not on fresh installs)
+    await fs.promises.mkdir(path.dirname(dbPath), { recursive: true });
     await fs.promises.writeFile(dbPath, JSON.stringify(remoteReadings, null, 2), 'utf-8');
 
     return `Pulled ${remoteReadings.length} readings from GitHub.`;
@@ -206,14 +208,32 @@ export class GitSync {
   }
 
   private async pullRemote(): Promise<void> {
+    // Clean up dirty state from previously failed operations
+    try {
+      await this.git(['rebase', '--abort']);
+    } catch { /* no rebase in progress */ }
+    try {
+      await this.git(['reset', '--hard', 'HEAD']);
+    } catch { /* empty repo with no HEAD */ }
+
     try {
       await this.git(['pull', '--rebase', 'origin', 'main']);
-    } catch {
-      // Might fail if no remote commits yet or branch doesn't exist; that's okay
-      try {
-        await this.git(['pull', '--rebase', 'origin', 'master']);
-      } catch {
-        // First push scenario — no remote branch yet
+      return;
+    } catch (mainErr: unknown) {
+      const msg = mainErr instanceof Error ? mainErr.message : String(mainErr);
+      // Only fall through to try 'master' if the branch was not found
+      if (!msg.includes("couldn't find remote ref")) {
+        throw mainErr;
+      }
+    }
+
+    try {
+      await this.git(['pull', '--rebase', 'origin', 'master']);
+    } catch (masterErr: unknown) {
+      const msg = masterErr instanceof Error ? masterErr.message : String(masterErr);
+      // Empty repo — no remote branches exist yet (first push scenario)
+      if (!msg.includes("couldn't find remote ref")) {
+        throw masterErr;
       }
     }
   }
