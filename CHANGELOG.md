@@ -5,6 +5,23 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-07-15
+
+### Security
+- **Fix XSS in dashboard URL onclick handler**: Replaced inline JS string literal with `data-url` attribute + `dataset` access to prevent URL-based script injection (URLs containing single quotes could break out of the JS string context in the previous escapeAttr approach)
+
+### Hardening (from prior code review)
+- **Race condition prevention**: Added mutation queue (`withMutationLock`) to JsonDb for serializing concurrent writes
+- **Atomic file writes**: JsonDb now writes to a temp file and renames, preventing corruption on crash
+- **Input validation**: `normalizeReading()` validates and sanitizes all fields when reading from disk; invalid timestamps fallback to epoch
+- **Comment sanitization**: Server-side HTML sanitization via cheerio (allowlist: b/strong/i/em/s/strike/ul/ol/li/p/br/div/span/code) plus client-side re-sanitization before save
+- **GitSync ID validation**: `isSafeReadingId()` regex prevents path traversal in individual sync files
+- **Tree view error handling**: Catches DB read errors and displays an error item instead of crashing
+- **Dependency security**: Upgraded axios to ^1.15.0 (patched known CVEs)
+
+### Testing
+- Added 22 new tests (62 total): concurrent writes, corrupted JSON recovery, malformed entry skipping, invalid timestamp normalization, unsafe ID rejection, incremental diff computation, migration, individual file I/O
+
 ## [0.1.0] - 2026-04-01
 
 Initial release of YNote — a VS Code extension for maintaining a private reading record system.

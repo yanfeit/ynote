@@ -120,7 +120,7 @@ export class DashboardPanel {
         return `
           <div class="card" data-id="${this.escapeAttr(r.id)}" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}" data-comment="${this.escapeAttr(searchableComment)}">
             <div class="card-header">
-              <a href="#" class="title" onclick="event.stopPropagation(); openUrl('${this.escapeAttr(r.url)}')">${this.escapeHtml(r.title)}</a>
+              <a href="#" class="title" data-url="${this.escapeAttr(r.url)}" onclick="event.stopPropagation(); openUrl(event.currentTarget.dataset.url)">${this.escapeHtml(r.title)}</a>
               <div class="card-header-right">
                 <span class="date">${date}</span>
               </div>
