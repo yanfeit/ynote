@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { JsonDb } from '../database/jsonDb';
+import { NoteDb } from '../database/noteDb';
 import { GitSync } from '../services/gitSync';
 
 function checkRepoUrl(): boolean {
@@ -21,6 +22,7 @@ function checkRepoUrl(): boolean {
 export function registerSyncCommand(
   context: vscode.ExtensionContext,
   db: JsonDb,
+  noteDb: NoteDb,
   gitSync: GitSync,
   onChanged: () => void
 ): vscode.Disposable {
@@ -34,7 +36,7 @@ export function registerSyncCommand(
           title: 'YNote: Pushing to GitHub...',
           cancellable: false,
         },
-        async () => gitSync.sync(db.getDbPath())
+        async () => gitSync.sync(db.getDbPath(), noteDb.getNotesDir())
       );
       onChanged();
       vscode.window.showInformationMessage(result);
@@ -48,6 +50,7 @@ export function registerSyncCommand(
 export function registerPullCommand(
   context: vscode.ExtensionContext,
   db: JsonDb,
+  noteDb: NoteDb,
   gitSync: GitSync,
   onChanged: () => void
 ): vscode.Disposable {
@@ -61,7 +64,7 @@ export function registerPullCommand(
           title: 'YNote: Pulling from GitHub...',
           cancellable: false,
         },
-        async () => gitSync.pull(db.getDbPath())
+        async () => gitSync.pull(db.getDbPath(), noteDb.getNotesDir())
       );
       onChanged();
       vscode.window.showInformationMessage(result);

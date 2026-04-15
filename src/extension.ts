@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import { JsonDb } from './database/jsonDb';
+import { NoteDb } from './database/noteDb';
 import { GitSync } from './services/gitSync';
 import { ReadingsTreeProvider, ReadingItem } from './providers/readingsTreeProvider';
+import { NotesTreeProvider, NoteItem } from './providers/notesTreeProvider';
 import { DashboardPanel } from './webview/DashboardPanel';
 import { registerAddReadingCommand } from './commands/addReading';
 import { registerSyncCommand, registerPullCommand } from './commands/syncToGithub';
@@ -9,28 +11,37 @@ import { fetchMetadata } from './services/metadataFetcher';
 
 export function activate(context: vscode.ExtensionContext): void {
   const db = new JsonDb(context);
+  const noteDb = new NoteDb(context);
   const gitSync = new GitSync(context);
   const treeProvider = new ReadingsTreeProvider(db);
+  const notesTreeProvider = new NotesTreeProvider(noteDb);
 
   const onChanged = () => {
     treeProvider.refresh();
+    notesTreeProvider.refresh();
     if (DashboardPanel.currentPanel) {
       DashboardPanel.currentPanel.update();
     }
   };
 
-  // Register tree view
+  // Register tree views
   const treeView = vscode.window.createTreeView('ynoteReadings', {
     treeDataProvider: treeProvider,
     showCollapseAll: true,
   });
   context.subscriptions.push(treeView);
 
+  const notesTreeView = vscode.window.createTreeView('ynoteNotes', {
+    treeDataProvider: notesTreeProvider,
+    showCollapseAll: true,
+  });
+  context.subscriptions.push(notesTreeView);
+
   // Register commands
   context.subscriptions.push(
     registerAddReadingCommand(context, db, onChanged),
-    registerSyncCommand(context, db, gitSync, onChanged),
-    registerPullCommand(context, db, gitSync, onChanged),
+    registerSyncCommand(context, db, noteDb, gitSync, onChanged),
+    registerPullCommand(context, db, noteDb, gitSync, onChanged),
 
     vscode.commands.registerCommand('ynote.removeReading', async (item: ReadingItem) => {
       if (!item?.reading) { return; }
@@ -139,6 +150,146 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage(`Failed to update tags: ${message}`);
       }
     }),
+
+    // ── Note commands ──
+
+    vscode.commands.registerCommand('ynote.createNote', async () => {
+      const title = await vscode.window.showInputBox({
+        prompt: 'Enter a title for your note',
+        placeHolder: 'e.g., Meeting notes, Architecture ideas',
+        validateInput: (value) => value ? null : 'Title is required',
+      });
+      if (!title) { return; }
+
+      // Tag input
+      const allTags = [...new Set([...(await db.getAllTags()), ...(await noteDb.getAllTags())])];
+      let tags: string[] = [];
+      if (allTags.length > 0) {
+        const pickItems: vscode.QuickPickItem[] = allTags.map(tag => ({ label: tag }));
+        const picks = await vscode.window.showQuickPick(pickItems, {
+          canPickMany: true,
+          placeHolder: 'Select tags (optional, press Enter to skip)',
+          title: 'Add tags',
+        });
+        if (picks) { tags = picks.map(p => p.label); }
+      }
+      const customTags = await vscode.window.showInputBox({
+        prompt: 'Add custom tags (comma-separated, leave empty to skip)',
+        placeHolder: 'e.g., ideas, architecture',
+      });
+      if (customTags) {
+        const parsed = customTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        tags = [...new Set([...tags, ...parsed])];
+      }
+
+      try {
+        const note = await noteDb.add(title, tags);
+        onChanged();
+        const doc = await vscode.workspace.openTextDocument(note.filePath);
+        await vscode.window.showTextDocument(doc);
+        vscode.window.showInformationMessage(`Note created: "${title}"`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to create note: ${message}`);
+      }
+    }),
+
+    vscode.commands.registerCommand('ynote.openNote', async (item: NoteItem) => {
+      if (!item?.note?.filePath) { return; }
+      try {
+        const doc = await vscode.workspace.openTextDocument(item.note.filePath);
+        await vscode.window.showTextDocument(doc);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to open note: ${message}`);
+      }
+    }),
+
+    vscode.commands.registerCommand('ynote.removeNote', async (item: NoteItem) => {
+      if (!item?.note) { return; }
+      const confirm = await vscode.window.showWarningMessage(
+        `Remove note "${item.note.title}"?`,
+        { modal: true },
+        'Remove'
+      );
+      if (confirm === 'Remove') {
+        try {
+          await noteDb.remove(item.note.id);
+          onChanged();
+          vscode.window.showInformationMessage('Note removed.');
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          vscode.window.showErrorMessage(`Failed to remove note: ${message}`);
+        }
+      }
+    }),
+
+    vscode.commands.registerCommand('ynote.editNoteTags', async (item: NoteItem) => {
+      if (!item?.note) { return; }
+      const note = item.note;
+
+      const allTags = [...new Set([...(await db.getAllTags()), ...(await noteDb.getAllTags())])];
+      const currentTags = new Set(note.tags);
+      const pickItems: vscode.QuickPickItem[] = [];
+
+      for (const tag of allTags) {
+        pickItems.push({
+          label: tag,
+          description: currentTags.has(tag) ? '(current)' : '',
+          picked: currentTags.has(tag),
+        });
+      }
+
+      const picks = await vscode.window.showQuickPick(pickItems, {
+        canPickMany: true,
+        placeHolder: 'Select tags or type to add new ones (press Enter to confirm)',
+        title: `Tags for "${note.title}"`,
+      });
+
+      if (picks === undefined) { return; }
+
+      let tags = picks.map(p => p.label);
+
+      const custom = await vscode.window.showInputBox({
+        prompt: 'Add custom tags (comma-separated, leave empty to skip)',
+        placeHolder: 'e.g., machine-learning, transformer',
+      });
+      if (custom) {
+        const customParsed = custom.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        tags = [...new Set([...tags, ...customParsed])];
+      }
+
+      try {
+        await noteDb.updateMetadata(note.id, { tags });
+        onChanged();
+        vscode.window.showInformationMessage(`Tags updated for "${note.title}"`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to update tags: ${message}`);
+      }
+    }),
+
+    vscode.commands.registerCommand('ynote.refreshNotes', () => {
+      notesTreeProvider.refresh();
+    }),
+  );
+
+  // Watch for saves to note files → update updatedAt in front matter
+  const notesDirPath = noteDb.getNotesDir();
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (doc) => {
+      const filePath = doc.uri.fsPath;
+      if (filePath.startsWith(notesDirPath) && filePath.endsWith('.md')) {
+        const filename = filePath.slice(notesDirPath.length + 1);
+        const id = filename.replace(/\.md$/, '');
+        try {
+          await noteDb.touchUpdatedAt(id);
+          notesTreeProvider.refresh();
+        } catch {
+          // Silently ignore — file may not be a valid note
+        }
+      }
+    })
   );
 }
 

@@ -261,4 +261,160 @@ describe('GitSync', () => {
       assert.strictEqual(readings.length, 1);
     });
   });
+
+  // ───── syncNotes() ─────
+
+  describe('syncNotes()', () => {
+    let tmpDir: string;
+    let gitSync: GitSync;
+    let syncDir: string;
+    let localNotesDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ynote-sync-test-'));
+      syncDir = path.join(tmpDir, 'sync-repo');
+      fs.mkdirSync(syncDir, { recursive: true });
+      fs.mkdirSync(path.join(syncDir, '.git'), { recursive: true });
+      localNotesDir = path.join(tmpDir, 'local-notes');
+      fs.mkdirSync(localNotesDir, { recursive: true });
+      const context = {
+        globalStorageUri: { fsPath: tmpDir },
+        subscriptions: [],
+      };
+      gitSync = new GitSync(context as any);
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('copies local .md files to sync notes dir', async () => {
+      fs.writeFileSync(path.join(localNotesDir, 'note1.md'), '---\nid: n1\n---\nContent');
+      fs.writeFileSync(path.join(localNotesDir, 'note2.md'), '---\nid: n2\n---\nContent');
+
+      const count = await gitSync.syncNotes(localNotesDir);
+      assert.strictEqual(count, 2);
+
+      const remoteNotesDir = path.join(syncDir, 'notes');
+      assert.ok(fs.existsSync(path.join(remoteNotesDir, 'note1.md')));
+      assert.ok(fs.existsSync(path.join(remoteNotesDir, 'note2.md')));
+    });
+
+    it('does not overwrite unchanged files', async () => {
+      const remoteNotesDir = path.join(syncDir, 'notes');
+      fs.mkdirSync(remoteNotesDir, { recursive: true });
+      const content = '---\nid: n1\n---\nSame content';
+      fs.writeFileSync(path.join(localNotesDir, 'note1.md'), content);
+      fs.writeFileSync(path.join(remoteNotesDir, 'note1.md'), content);
+
+      const count = await gitSync.syncNotes(localNotesDir);
+      assert.strictEqual(count, 1);
+      // File should still exist with same content
+      const remoteContent = fs.readFileSync(path.join(remoteNotesDir, 'note1.md'), 'utf-8');
+      assert.strictEqual(remoteContent, content);
+    });
+
+    it('overwrites changed files', async () => {
+      const remoteNotesDir = path.join(syncDir, 'notes');
+      fs.mkdirSync(remoteNotesDir, { recursive: true });
+      fs.writeFileSync(path.join(localNotesDir, 'note1.md'), 'New content');
+      fs.writeFileSync(path.join(remoteNotesDir, 'note1.md'), 'Old content');
+
+      await gitSync.syncNotes(localNotesDir);
+      const remoteContent = fs.readFileSync(path.join(remoteNotesDir, 'note1.md'), 'utf-8');
+      assert.strictEqual(remoteContent, 'New content');
+    });
+
+    it('deletes remote files not in local', async () => {
+      const remoteNotesDir = path.join(syncDir, 'notes');
+      fs.mkdirSync(remoteNotesDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNotesDir, 'deleted.md'), 'Old note');
+      fs.writeFileSync(path.join(localNotesDir, 'kept.md'), 'Kept note');
+
+      await gitSync.syncNotes(localNotesDir);
+      assert.ok(!fs.existsSync(path.join(remoteNotesDir, 'deleted.md')));
+      assert.ok(fs.existsSync(path.join(remoteNotesDir, 'kept.md')));
+    });
+
+    it('returns 0 when local notes dir does not exist', async () => {
+      fs.rmSync(localNotesDir, { recursive: true, force: true });
+      const count = await gitSync.syncNotes(localNotesDir);
+      assert.strictEqual(count, 0);
+    });
+
+    it('ignores non-.md files in local dir', async () => {
+      fs.writeFileSync(path.join(localNotesDir, 'note.md'), 'content');
+      fs.writeFileSync(path.join(localNotesDir, 'data.json'), '{}');
+
+      const count = await gitSync.syncNotes(localNotesDir);
+      assert.strictEqual(count, 1);
+    });
+  });
+
+  // ───── pullNotes() ─────
+
+  describe('pullNotes()', () => {
+    let tmpDir: string;
+    let gitSync: GitSync;
+    let syncDir: string;
+    let localNotesDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ynote-sync-test-'));
+      syncDir = path.join(tmpDir, 'sync-repo');
+      fs.mkdirSync(syncDir, { recursive: true });
+      fs.mkdirSync(path.join(syncDir, '.git'), { recursive: true });
+      localNotesDir = path.join(tmpDir, 'local-notes');
+      fs.mkdirSync(localNotesDir, { recursive: true });
+      const context = {
+        globalStorageUri: { fsPath: tmpDir },
+        subscriptions: [],
+      };
+      gitSync = new GitSync(context as any);
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('copies remote notes to local dir', async () => {
+      const remoteNotesDir = path.join(syncDir, 'notes');
+      fs.mkdirSync(remoteNotesDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNotesDir, 'note1.md'), 'Remote content 1');
+      fs.writeFileSync(path.join(remoteNotesDir, 'note2.md'), 'Remote content 2');
+
+      const count = await gitSync.pullNotes(localNotesDir);
+      assert.strictEqual(count, 2);
+      assert.strictEqual(fs.readFileSync(path.join(localNotesDir, 'note1.md'), 'utf-8'), 'Remote content 1');
+      assert.strictEqual(fs.readFileSync(path.join(localNotesDir, 'note2.md'), 'utf-8'), 'Remote content 2');
+    });
+
+    it('deletes local files not in remote', async () => {
+      const remoteNotesDir = path.join(syncDir, 'notes');
+      fs.mkdirSync(remoteNotesDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNotesDir, 'keep.md'), 'keep');
+      fs.writeFileSync(path.join(localNotesDir, 'keep.md'), 'old');
+      fs.writeFileSync(path.join(localNotesDir, 'delete-me.md'), 'delete');
+
+      await gitSync.pullNotes(localNotesDir);
+      assert.ok(fs.existsSync(path.join(localNotesDir, 'keep.md')));
+      assert.ok(!fs.existsSync(path.join(localNotesDir, 'delete-me.md')));
+    });
+
+    it('returns 0 when remote notes dir does not exist', async () => {
+      const count = await gitSync.pullNotes(localNotesDir);
+      assert.strictEqual(count, 0);
+    });
+
+    it('creates local dir if missing', async () => {
+      fs.rmSync(localNotesDir, { recursive: true, force: true });
+      const remoteNotesDir = path.join(syncDir, 'notes');
+      fs.mkdirSync(remoteNotesDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNotesDir, 'note.md'), 'content');
+
+      const count = await gitSync.pullNotes(localNotesDir);
+      assert.strictEqual(count, 1);
+      assert.ok(fs.existsSync(path.join(localNotesDir, 'note.md')));
+    });
+  });
 });

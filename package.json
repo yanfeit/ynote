@@ -2,7 +2,7 @@
   "name": "ynote",
   "displayName": "YNote - Reading Record",
   "description": "A private reading record system for recording daily reading material with abstracts and metadata.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "yanfeit",
   "extensionKind": [
     "workspace"
@@ -60,6 +60,31 @@
         "command": "ynote.editTags",
         "title": "YNote: Edit Tags",
         "icon": "$(tag)"
+      },
+      {
+        "command": "ynote.createNote",
+        "title": "YNote: Create Note",
+        "icon": "$(add)"
+      },
+      {
+        "command": "ynote.openNote",
+        "title": "YNote: Open Note",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "ynote.removeNote",
+        "title": "YNote: Remove Note",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "ynote.editNoteTags",
+        "title": "YNote: Edit Note Tags",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "ynote.refreshNotes",
+        "title": "YNote: Refresh Notes",
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
@@ -75,9 +100,15 @@
       "ynote": [
         {
           "id": "ynoteReadings",
-          "name": "Readings",
+          "name": "My Reading Diary",
           "icon": "$(book)",
           "contextualTitle": "YNote Readings"
+        },
+        {
+          "id": "ynoteNotes",
+          "name": "Notes",
+          "icon": "$(note)",
+          "contextualTitle": "YNote Notes"
         }
       ]
     },
@@ -97,6 +128,16 @@
           "command": "ynote.showDashboard",
           "when": "view == ynoteReadings",
           "group": "navigation"
+        },
+        {
+          "command": "ynote.createNote",
+          "when": "view == ynoteNotes",
+          "group": "navigation"
+        },
+        {
+          "command": "ynote.refreshNotes",
+          "when": "view == ynoteNotes",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -113,6 +154,21 @@
         {
           "command": "ynote.editTags",
           "when": "view == ynoteReadings && viewItem == reading",
+          "group": "inline"
+        },
+        {
+          "command": "ynote.openNote",
+          "when": "view == ynoteNotes && viewItem == note",
+          "group": "inline"
+        },
+        {
+          "command": "ynote.removeNote",
+          "when": "view == ynoteNotes && viewItem == note",
+          "group": "inline"
+        },
+        {
+          "command": "ynote.editNoteTags",
+          "when": "view == ynoteNotes && viewItem == note",
           "group": "inline"
         }
       ]

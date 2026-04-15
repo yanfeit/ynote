@@ -81,11 +81,15 @@ export class GitSync {
     return path.join(this.syncDir, 'readings');
   }
 
+  get notesDir(): string {
+    return path.join(this.syncDir, 'notes');
+  }
+
   /**
    * Push local readings to cloud. Cloud becomes exactly what local has.
    * Uses incremental file updates: only changed entries are written, removed entries are deleted.
    */
-  async sync(dbPath: string): Promise<string> {
+  async sync(dbPath: string, localNotesDir?: string): Promise<string> {
     const repoUrl = this.getRepoUrl();
     if (!repoUrl) {
       throw new Error('GitHub repo URL not configured. Set ynote.githubRepoUrl in settings.');
@@ -122,25 +126,36 @@ export class GitSync {
       }
     }
 
+    // Sync notes (Markdown files)
+    let noteCount = 0;
+    if (localNotesDir) {
+      noteCount = await this.syncNotes(localNotesDir);
+    }
+
     // Stage all changes, commit, push
     await this.git(['add', '-A']);
 
     try {
       const date = new Date().toISOString().slice(0, 19).replace('T', ' ');
-      await this.git(['commit', '-m', `sync readings ${date}`]);
+      await this.git(['commit', '-m', `sync ${date}`]);
     } catch {
       // Nothing to commit
       return 'Already up to date.';
     }
 
     await this.git(['push', 'origin', 'HEAD']);
-    return `Pushed ${localReadings.length} readings to GitHub (${diff.toWrite.length} updated, ${diff.toDelete.length} deleted).`;
+    let msg = `Pushed ${localReadings.length} readings (${diff.toWrite.length} updated, ${diff.toDelete.length} deleted)`;
+    if (noteCount > 0) {
+      msg += `, ${noteCount} notes`;
+    }
+    msg += ' to GitHub.';
+    return msg;
   }
 
   /**
    * Pull readings from cloud. Local becomes exactly what cloud has.
    */
-  async pull(dbPath: string): Promise<string> {
+  async pull(dbPath: string, localNotesDir?: string): Promise<string> {
     const repoUrl = this.getRepoUrl();
     if (!repoUrl) {
       throw new Error('GitHub repo URL not configured. Set ynote.githubRepoUrl in settings.');
@@ -168,7 +183,18 @@ export class GitSync {
     await fs.promises.mkdir(path.dirname(dbPath), { recursive: true });
     await fs.promises.writeFile(dbPath, JSON.stringify(remoteReadings, null, 2), 'utf-8');
 
-    return `Pulled ${remoteReadings.length} readings from GitHub.`;
+    // Pull notes (Markdown files)
+    let noteCount = 0;
+    if (localNotesDir) {
+      noteCount = await this.pullNotes(localNotesDir);
+    }
+
+    let msg = `Pulled ${remoteReadings.length} readings`;
+    if (noteCount > 0) {
+      msg += ` and ${noteCount} notes`;
+    }
+    msg += ' from GitHub.';
+    return msg;
   }
 
   /**
@@ -229,6 +255,106 @@ export class GitSync {
       throw new Error('Failed to read synced readings directory.');
     }
     return readings;
+  }
+
+  /**
+   * Sync local notes (.md files) to sync-repo/notes/.
+   * Copies changed files, deletes removed ones. Returns the total note count.
+   */
+  async syncNotes(localNotesDir: string): Promise<number> {
+    await fs.promises.mkdir(this.notesDir, { recursive: true });
+
+    // Read local note files
+    let localFiles: string[] = [];
+    try {
+      localFiles = (await fs.promises.readdir(localNotesDir))
+        .filter(f => f.endsWith('.md'));
+    } catch (err: unknown) {
+      if (this.isFileNotFound(err)) { return 0; }
+      throw err;
+    }
+
+    // Read remote note files
+    let remoteFiles: string[] = [];
+    try {
+      remoteFiles = (await fs.promises.readdir(this.notesDir))
+        .filter(f => f.endsWith('.md'));
+    } catch (err: unknown) {
+      if (!this.isFileNotFound(err)) { throw err; }
+    }
+
+    const remoteSet = new Set(remoteFiles);
+
+    // Copy new or changed local files to sync dir
+    for (const file of localFiles) {
+      const localPath = path.join(localNotesDir, file);
+      const remotePath = path.join(this.notesDir, file);
+      const localContent = await fs.promises.readFile(localPath, 'utf-8');
+
+      let remoteContent = '';
+      if (remoteSet.has(file)) {
+        try {
+          remoteContent = await fs.promises.readFile(remotePath, 'utf-8');
+        } catch { /* treat as missing */ }
+      }
+
+      if (localContent !== remoteContent) {
+        await fs.promises.writeFile(remotePath, localContent, 'utf-8');
+      }
+    }
+
+    // Delete remote files not in local
+    const localSet = new Set(localFiles);
+    for (const file of remoteFiles) {
+      if (!localSet.has(file)) {
+        try {
+          await fs.promises.unlink(path.join(this.notesDir, file));
+        } catch { /* already gone */ }
+      }
+    }
+
+    return localFiles.length;
+  }
+
+  /**
+   * Pull notes from sync-repo/notes/ to local notes directory.
+   * Overwrites local with remote content. Returns the note count.
+   */
+  async pullNotes(localNotesDir: string): Promise<number> {
+    await fs.promises.mkdir(localNotesDir, { recursive: true });
+
+    let remoteFiles: string[] = [];
+    try {
+      remoteFiles = (await fs.promises.readdir(this.notesDir))
+        .filter(f => f.endsWith('.md'));
+    } catch (err: unknown) {
+      if (this.isFileNotFound(err)) { return 0; }
+      throw err;
+    }
+
+    // Copy remote → local
+    for (const file of remoteFiles) {
+      const content = await fs.promises.readFile(path.join(this.notesDir, file), 'utf-8');
+      await fs.promises.writeFile(path.join(localNotesDir, file), content, 'utf-8');
+    }
+
+    // Delete local files not in remote
+    let localFiles: string[] = [];
+    try {
+      localFiles = (await fs.promises.readdir(localNotesDir))
+        .filter(f => f.endsWith('.md'));
+    } catch { /* empty */ }
+
+    const remoteSet = new Set(remoteFiles);
+    for (const file of localFiles) {
+      if (!remoteSet.has(file)) {
+        try {
+          await fs.promises.unlink(path.join(localNotesDir, file));
+        } catch { /* already gone */ }
+      }
+    }
+
+    return remoteFiles.length;
   }
 
   private async pullRemote(): Promise<void> {

@@ -5,7 +5,32 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - 2026-07-15
+## [0.2.0] - 2026-04-16
+
+### Added
+- **Notes module**: Full lifecycle note-taking with Markdown files and YAML front matter
+  - `ynote.createNote`: Create a new note with title and optional tags, opens in VS Code native editor
+  - `ynote.openNote`: Open an existing note in the text editor
+  - `ynote.removeNote`: Delete a note (with confirmation dialog)
+  - `ynote.editNoteTags`: Edit tags on a note via QuickPick (unified tag pool with readings)
+  - `ynote.refreshNotes`: Refresh the notes tree view
+- **Notes sidebar**: New "Notes" view in the YNote sidebar with year-month grouping, expandable details (tags, dates)
+- **Notes sync**: Push/pull notes (`.md` files) alongside readings to the same GitHub repo (`notes/` directory)
+- **Auto-update timestamp**: Saving a note file automatically updates its `updatedAt` front matter field
+
+### Changed
+- Renamed sidebar "Readings" section to "My Reading Diary"
+- Sync commands now include note counts in progress messages
+
+### Data Model
+- `Note` interface: `id`, `title`, `createdAt`, `updatedAt`, `tags`, `filePath`
+- `NoteDb` class: CRUD operations on markdown files with YAML front matter parsing
+- Notes stored as `<uuid>.md` files in `globalStorageUri/notes/`
+
+### Testing
+- Added 35 new tests (97 total): NoteDb CRUD, front matter parsing robustness, concurrent writes, syncNotes, pullNotes
+
+## [0.1.1] - 2026-04-15
 
 ### Security
 - **Fix XSS in dashboard URL onclick handler**: Replaced inline JS string literal with `data-url` attribute + `dataset` access to prevent URL-based script injection (URLs containing single quotes could break out of the JS string context in the previous escapeAttr approach)
