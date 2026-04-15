@@ -87,6 +87,58 @@ describe('JsonDb', () => {
         /already exists/
       );
     });
+
+    it('handles concurrent add operations without losing data', async () => {
+      const tasks: Array<Promise<void>> = [];
+      for (let i = 0; i < 5; i++) {
+        tasks.push(db.add(makeReading({ id: `concurrent-${i}`, url: `https://concurrent-${i}.com` })));
+      }
+
+      await Promise.all(tasks);
+      const all = await db.getAll();
+      assert.strictEqual(all.length, 5);
+    });
+  });
+
+  describe('robustness', () => {
+    it('throws when readings.json is corrupted', async () => {
+      const filePath = db.getDbPath();
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, '{ this is invalid json', 'utf-8');
+
+      await assert.rejects(
+        () => db.getAll(),
+        /Failed to parse readings database/
+      );
+    });
+
+    it('normalizes invalid timestamps to epoch', async () => {
+      const filePath = db.getDbPath();
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      const badDateReading = makeReading({
+        id: 'bad-date',
+        url: 'https://bad-date.com',
+        addedAt: 'bad-date',
+        updatedAt: 'also-bad',
+      });
+      fs.writeFileSync(filePath, JSON.stringify([badDateReading], null, 2), 'utf-8');
+
+      const all = await db.getAll();
+      assert.strictEqual(all.length, 1);
+      assert.strictEqual(all[0].addedAt, '1970-01-01T00:00:00.000Z');
+      assert.strictEqual(all[0].updatedAt, '1970-01-01T00:00:00.000Z');
+    });
+
+    it('skips malformed entries while keeping valid ones', async () => {
+      const filePath = db.getDbPath();
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      const valid = makeReading({ id: 'valid-1', url: 'https://valid-1.com' });
+      fs.writeFileSync(filePath, JSON.stringify([{}, valid], null, 2), 'utf-8');
+
+      const all = await db.getAll();
+      assert.strictEqual(all.length, 1);
+      assert.strictEqual(all[0].id, 'valid-1');
+    });
   });
 
   describe('remove()', () => {

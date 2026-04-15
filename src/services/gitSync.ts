@@ -6,6 +6,18 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
+function isSafeReadingId(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9._-]{1,128}$/.test(value);
+}
+
+function parseTimestamp(value: unknown): number {
+  if (typeof value !== 'string') {
+    return 0;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 export interface SyncDiff {
   toWrite: Array<Record<string, unknown>>;
   toDelete: string[];
@@ -29,6 +41,15 @@ export class GitSync {
       timeout: 30000,
     });
     return stdout.trim();
+  }
+
+  private isFileNotFound(err: unknown): boolean {
+    return Boolean(
+      err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      (err as { code?: string }).code === 'ENOENT'
+    );
   }
 
   async isSetup(): Promise<boolean> {
@@ -138,8 +159,8 @@ export class GitSync {
 
     // Sort newest first
     remoteReadings.sort((a, b) => {
-      const dateA = new Date(a.addedAt as string).getTime();
-      const dateB = new Date(b.addedAt as string).getTime();
+      const dateA = parseTimestamp(a.addedAt);
+      const dateB = parseTimestamp(b.addedAt);
       return dateB - dateA;
     });
 
@@ -167,7 +188,7 @@ export class GitSync {
       await fs.promises.mkdir(this.readingsDir, { recursive: true });
 
       for (const entry of readings) {
-        if (entry.id && typeof entry.id === 'string') {
+        if (isSafeReadingId(entry.id)) {
           const filePath = path.join(this.readingsDir, `${entry.id}.json`);
           // Only write if file doesn't already exist (don't overwrite newer individual files)
           try {
@@ -201,8 +222,11 @@ export class GitSync {
           }
         }
       }
-    } catch {
-      // Directory doesn't exist yet
+    } catch (err: unknown) {
+      if (this.isFileNotFound(err)) {
+        return readings;
+      }
+      throw new Error('Failed to read synced readings directory.');
     }
     return readings;
   }
@@ -241,9 +265,19 @@ export class GitSync {
   private async readJsonSafe(filePath: string): Promise<Array<Record<string, unknown>>> {
     try {
       const data = await fs.promises.readFile(filePath, 'utf-8');
-      return JSON.parse(data);
-    } catch {
-      return [];
+      const parsed: unknown = JSON.parse(data);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Local readings database is invalid: expected an array.');
+      }
+      return parsed.filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null);
+    } catch (err: unknown) {
+      if (this.isFileNotFound(err)) {
+        return [];
+      }
+      if (err instanceof Error) {
+        throw new Error(`Failed to read local readings: ${err.message}`);
+      }
+      throw new Error('Failed to read local readings.');
     }
   }
 
@@ -257,14 +291,14 @@ export class GitSync {
   ): SyncDiff {
     const remoteById = new Map<string, Record<string, unknown>>();
     for (const r of remote) {
-      if (r.id && typeof r.id === 'string') {
+      if (isSafeReadingId(r.id)) {
         remoteById.set(r.id, r);
       }
     }
 
     const localById = new Map<string, Record<string, unknown>>();
     for (const r of local) {
-      if (r.id && typeof r.id === 'string') {
+      if (isSafeReadingId(r.id)) {
         localById.set(r.id, r);
       }
     }

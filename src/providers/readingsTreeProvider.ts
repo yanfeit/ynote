@@ -18,7 +18,13 @@ export class ReadingsTreeProvider implements vscode.TreeDataProvider<TreeElement
 
   async getChildren(element?: TreeElement): Promise<TreeElement[]> {
     if (!element) {
-      this.readings = await this.db.getAll();
+      try {
+        this.readings = await this.db.getAll();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return [new ReadingDetail('Error', `Failed to load readings: ${message}`)];
+      }
+
       // Group by year-month
       const groups = new Map<string, Reading[]>();
       for (const r of this.readings) {

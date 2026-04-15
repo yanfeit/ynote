@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as cheerio from 'cheerio';
 import { JsonDb } from '../database/jsonDb';
 import { Reading } from '../models/reading';
 
@@ -17,13 +18,24 @@ export class DashboardPanel {
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage(
       async (msg) => {
+        if (!msg || typeof msg !== 'object' || typeof msg.command !== 'string') {
+          return;
+        }
+
         if (msg.command === 'openUrl') {
-          vscode.env.openExternal(vscode.Uri.parse(msg.url));
+          if (typeof msg.url === 'string') {
+            vscode.env.openExternal(vscode.Uri.parse(msg.url));
+          }
         } else if (msg.command === 'refresh') {
           await this.update();
         } else if (msg.command === 'saveComment') {
+          if (typeof msg.id !== 'string' || typeof msg.comment !== 'string') {
+            return;
+          }
+
+          const safeComment = this.sanitizeCommentHtml(msg.comment);
           try {
-            await this.db.update(msg.id, { comment: msg.comment });
+            await this.db.update(msg.id, { comment: safeComment });
             vscode.window.showInformationMessage('Comment saved.');
           } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
@@ -70,7 +82,6 @@ export class DashboardPanel {
 
   private dispose(): void {
     DashboardPanel.currentPanel = undefined;
-    this.panel.dispose();
     for (const d of this.disposables) { d.dispose(); }
     this.disposables = [];
   }
@@ -90,6 +101,8 @@ export class DashboardPanel {
       const groupReadings = groups.get(key)!;
       const isLatest = index === 0;
       const cards = groupReadings.map(r => {
+        const safeCommentHtml = this.sanitizeCommentHtml(r.comment || '');
+        const searchableComment = this.stripHtml(safeCommentHtml);
         const date = new Date(r.addedAt).toLocaleDateString();
         const author = r.author ? `<span class="author">By ${this.escapeHtml(r.author)}</span>` : '';
         const org = r.organization ? `<span class="org">${this.escapeHtml(r.organization)}</span>` : '';
@@ -99,13 +112,13 @@ export class DashboardPanel {
           : '';
         // Show source only if it differs from organization (avoid duplication)
         const showSource = r.source && r.source !== r.organization;
-        const hasComment = r.comment && r.comment.trim().length > 0;
+        const hasComment = searchableComment.trim().length > 0;
         const commentPreview = hasComment
-          ? `<div class="comment-preview"><span class="comment-label">💬 Note:</span> ${r.comment}</div>`
+          ? `<div class="comment-preview"><span class="comment-label">💬 Note:</span> ${safeCommentHtml}</div>`
           : `<div class="comment-preview comment-placeholder">Click to add a note...</div>`;
 
         return `
-          <div class="card" data-id="${this.escapeAttr(r.id)}" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}" data-comment="${this.escapeAttr(r.comment || '')}">
+          <div class="card" data-id="${this.escapeAttr(r.id)}" data-title="${this.escapeAttr(r.title)}" data-author="${this.escapeAttr(r.author)}" data-org="${this.escapeAttr(r.organization)}" data-abstract="${this.escapeAttr(r.abstract)}" data-tags="${this.escapeAttr(r.tags.join(' '))}" data-comment="${this.escapeAttr(searchableComment)}">
             <div class="card-header">
               <a href="#" class="title" onclick="event.stopPropagation(); openUrl('${this.escapeAttr(r.url)}')">${this.escapeHtml(r.title)}</a>
               <div class="card-header-right">
@@ -133,7 +146,7 @@ export class DashboardPanel {
                 </div>
                 <button type="button" class="toolbar-btn save-btn" onclick="event.stopPropagation(); saveComment(this)" title="Save comment">Save</button>
               </div>
-              <div class="comment-editor" contenteditable="true" onclick="event.stopPropagation()">${r.comment || ''}</div>
+              <div class="comment-editor" contenteditable="true" onclick="event.stopPropagation()">${safeCommentHtml}</div>
             </div>
           </div>`;
       }).join('\n');
@@ -547,13 +560,40 @@ export class DashboardPanel {
       const expanded = document.querySelector('.card.expanded .comment-editor');
       if (expanded) { expanded.focus(); }
     }
+    function sanitizeCommentHtml(html) {
+      const template = document.createElement('template');
+      template.innerHTML = html;
+      const allowed = new Set(['b', 'strong', 'i', 'em', 's', 'strike', 'ul', 'ol', 'li', 'p', 'br', 'div', 'span', 'code']);
+
+      const walk = (node) => {
+        const children = Array.from(node.childNodes);
+        for (const child of children) {
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            const el = child;
+            const tag = el.tagName.toLowerCase();
+            if (!allowed.has(tag)) {
+              const text = document.createTextNode(el.textContent || '');
+              node.replaceChild(text, el);
+              continue;
+            }
+
+            Array.from(el.attributes).forEach(attr => el.removeAttribute(attr.name));
+            walk(el);
+          }
+        }
+      };
+
+      walk(template.content);
+      return template.innerHTML.trim();
+    }
     function saveComment(btn) {
       const card = btn.closest('.card');
       const editor = card.querySelector('.comment-editor');
       const id = card.dataset.id;
-      const comment = editor.innerHTML.trim();
+      const comment = sanitizeCommentHtml(editor.innerHTML.trim());
+      editor.innerHTML = comment;
       // Update the data attribute so search picks it up
-      card.dataset.comment = comment;
+      card.dataset.comment = editor.textContent || '';
       // Update the comment preview on the card
       const preview = card.querySelector('.comment-preview');
       if (comment && comment !== '<br>') {
@@ -611,5 +651,35 @@ export class DashboardPanel {
 
   private escapeAttr(text: string): string {
     return this.escapeHtml(text).replace(/\n/g, ' ');
+  }
+
+  private sanitizeCommentHtml(rawHtml: string): string {
+    if (!rawHtml) {
+      return '';
+    }
+
+    const allowedTags = new Set(['b', 'strong', 'i', 'em', 's', 'strike', 'ul', 'ol', 'li', 'p', 'br', 'div', 'span', 'code']);
+    const $ = cheerio.load(`<div id="__ynote_root">${rawHtml}</div>`);
+    const root = $('#__ynote_root');
+
+    root.find('*').each((_idx, el) => {
+      const tagName = (el as { tagName?: string }).tagName?.toLowerCase() || '';
+      if (!allowedTags.has(tagName)) {
+        $(el).replaceWith($(el).text());
+        return;
+      }
+
+      const attrs = Object.keys((el as { attribs?: Record<string, string> }).attribs || {});
+      for (const attr of attrs) {
+        $(el).removeAttr(attr);
+      }
+    });
+
+    return root.html() || '';
+  }
+
+  private stripHtml(rawHtml: string): string {
+    const $ = cheerio.load(rawHtml || '');
+    return $.text().replace(/\s+/g, ' ').trim();
   }
 }

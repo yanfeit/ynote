@@ -128,6 +128,14 @@ describe('GitSync', () => {
       assert.strictEqual(diff.toWrite.length, 0);
       assert.strictEqual(diff.toDelete.length, 0);
     });
+
+    it('skips entries with unsafe string ids', () => {
+      const local = [{ id: '../escape', title: 'bad id' } as Record<string, unknown>];
+      const remote = [{ id: '../../remote', title: 'bad remote id' } as Record<string, unknown>];
+      const diff = GitSync.computeDiff(local, remote);
+      assert.strictEqual(diff.toWrite.length, 0);
+      assert.strictEqual(diff.toDelete.length, 0);
+    });
   });
 
   // ───── migrateFromSingleFile() ─────
