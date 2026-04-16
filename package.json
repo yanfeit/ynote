@@ -2,7 +2,7 @@
   "name": "ynote",
   "displayName": "YNote - Reading Record",
   "description": "A private reading record system for recording daily reading material with abstracts and metadata.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "publisher": "yanfeit",
   "extensionKind": [
     "workspace"
@@ -132,6 +132,11 @@
       {
         "command": "ynote.downloadNote",
         "title": "YNote: Download Note"
+      },
+      {
+        "command": "ynote.insertImage",
+        "title": "YNote: Insert Image",
+        "icon": "$(file-media)"
       }
     ],
     "viewsContainers": {
@@ -288,6 +293,11 @@
           "type": "number",
           "default": 10000,
           "description": "Timeout in milliseconds for fetching web page metadata"
+        },
+        "ynote.maxImageSizeMB": {
+          "type": "number",
+          "default": 10,
+          "description": "Maximum image file size in MB for insertion (larger images will show a warning)"
         }
       }
     },
@@ -296,6 +306,12 @@
         "command": "ynote.addReading",
         "key": "ctrl+shift+y",
         "mac": "cmd+shift+y"
+      },
+      {
+        "command": "ynote.insertImage",
+        "key": "ctrl+shift+i",
+        "mac": "cmd+shift+i",
+        "when": "editorTextFocus && editorLangId == markdown"
       }
     ]
   },

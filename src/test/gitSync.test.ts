@@ -417,4 +417,187 @@ describe('GitSync', () => {
       assert.ok(fs.existsSync(path.join(localNotesDir, 'note.md')));
     });
   });
+
+  // ───── syncImages() ─────
+
+  describe('syncImages()', () => {
+    let tmpDir: string;
+    let gitSync: GitSync;
+    let syncDir: string;
+    let localImagesDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ynote-sync-test-'));
+      syncDir = path.join(tmpDir, 'sync-repo');
+      fs.mkdirSync(syncDir, { recursive: true });
+      fs.mkdirSync(path.join(syncDir, '.git'), { recursive: true });
+      localImagesDir = path.join(tmpDir, 'local-images');
+      fs.mkdirSync(localImagesDir, { recursive: true });
+      const context = {
+        globalStorageUri: { fsPath: tmpDir },
+        subscriptions: [],
+      };
+      gitSync = new GitSync(context as any);
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('copies local image files to sync images dir', async () => {
+      const noteDir = path.join(localImagesDir, 'note-id-1');
+      fs.mkdirSync(noteDir, { recursive: true });
+      fs.writeFileSync(path.join(noteDir, 'img1.png'), Buffer.from([0x89, 0x50]));
+      fs.writeFileSync(path.join(noteDir, 'img2.jpg'), Buffer.from([0xFF, 0xD8]));
+
+      const count = await gitSync.syncImages(localImagesDir);
+      assert.strictEqual(count, 2);
+
+      const remoteNoteDir = path.join(syncDir, 'images', 'note-id-1');
+      assert.ok(fs.existsSync(path.join(remoteNoteDir, 'img1.png')));
+      assert.ok(fs.existsSync(path.join(remoteNoteDir, 'img2.jpg')));
+    });
+
+    it('does not overwrite unchanged binary files', async () => {
+      const noteDir = path.join(localImagesDir, 'note-id-1');
+      fs.mkdirSync(noteDir, { recursive: true });
+      const remoteNoteDir = path.join(syncDir, 'images', 'note-id-1');
+      fs.mkdirSync(remoteNoteDir, { recursive: true });
+      const data = Buffer.from([0x89, 0x50, 0x4E, 0x47]);
+      fs.writeFileSync(path.join(noteDir, 'same.png'), data);
+      fs.writeFileSync(path.join(remoteNoteDir, 'same.png'), data);
+
+      const count = await gitSync.syncImages(localImagesDir);
+      assert.strictEqual(count, 1);
+      // Remote file should still be identical
+      const remoteData = fs.readFileSync(path.join(remoteNoteDir, 'same.png'));
+      assert.ok(remoteData.equals(data));
+    });
+
+    it('overwrites changed binary files', async () => {
+      const noteDir = path.join(localImagesDir, 'note-id-1');
+      fs.mkdirSync(noteDir, { recursive: true });
+      const remoteNoteDir = path.join(syncDir, 'images', 'note-id-1');
+      fs.mkdirSync(remoteNoteDir, { recursive: true });
+      fs.writeFileSync(path.join(noteDir, 'img.png'), Buffer.from([0x01, 0x02]));
+      fs.writeFileSync(path.join(remoteNoteDir, 'img.png'), Buffer.from([0x03, 0x04]));
+
+      await gitSync.syncImages(localImagesDir);
+      const remoteData = fs.readFileSync(path.join(remoteNoteDir, 'img.png'));
+      assert.ok(remoteData.equals(Buffer.from([0x01, 0x02])));
+    });
+
+    it('deletes remote note directories not in local', async () => {
+      const remoteNoteDir = path.join(syncDir, 'images', 'deleted-note');
+      fs.mkdirSync(remoteNoteDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNoteDir, 'old.png'), 'old');
+
+      const noteDir = path.join(localImagesDir, 'kept-note');
+      fs.mkdirSync(noteDir, { recursive: true });
+      fs.writeFileSync(path.join(noteDir, 'img.png'), 'new');
+
+      await gitSync.syncImages(localImagesDir);
+      assert.ok(!fs.existsSync(remoteNoteDir));
+      assert.ok(fs.existsSync(path.join(syncDir, 'images', 'kept-note', 'img.png')));
+    });
+
+    it('returns 0 when local images dir does not exist', async () => {
+      fs.rmSync(localImagesDir, { recursive: true, force: true });
+      const count = await gitSync.syncImages(localImagesDir);
+      assert.strictEqual(count, 0);
+    });
+
+    it('handles multiple note subdirectories', async () => {
+      const dir1 = path.join(localImagesDir, 'note-1');
+      const dir2 = path.join(localImagesDir, 'note-2');
+      fs.mkdirSync(dir1, { recursive: true });
+      fs.mkdirSync(dir2, { recursive: true });
+      fs.writeFileSync(path.join(dir1, 'a.png'), 'a');
+      fs.writeFileSync(path.join(dir2, 'b.png'), 'b');
+      fs.writeFileSync(path.join(dir2, 'c.png'), 'c');
+
+      const count = await gitSync.syncImages(localImagesDir);
+      assert.strictEqual(count, 3);
+    });
+  });
+
+  // ───── pullImages() ─────
+
+  describe('pullImages()', () => {
+    let tmpDir: string;
+    let gitSync: GitSync;
+    let syncDir: string;
+    let localImagesDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ynote-sync-test-'));
+      syncDir = path.join(tmpDir, 'sync-repo');
+      fs.mkdirSync(syncDir, { recursive: true });
+      fs.mkdirSync(path.join(syncDir, '.git'), { recursive: true });
+      localImagesDir = path.join(tmpDir, 'local-images');
+      fs.mkdirSync(localImagesDir, { recursive: true });
+      const context = {
+        globalStorageUri: { fsPath: tmpDir },
+        subscriptions: [],
+      };
+      gitSync = new GitSync(context as any);
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('copies remote images to local dir', async () => {
+      const remoteNoteDir = path.join(syncDir, 'images', 'note-1');
+      fs.mkdirSync(remoteNoteDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNoteDir, 'img.png'), Buffer.from([0x89, 0x50]));
+
+      const count = await gitSync.pullImages(localImagesDir);
+      assert.strictEqual(count, 1);
+      const localData = fs.readFileSync(path.join(localImagesDir, 'note-1', 'img.png'));
+      assert.ok(localData.equals(Buffer.from([0x89, 0x50])));
+    });
+
+    it('deletes local note directories not in remote', async () => {
+      const localNoteDir = path.join(localImagesDir, 'deleted-note');
+      fs.mkdirSync(localNoteDir, { recursive: true });
+      fs.writeFileSync(path.join(localNoteDir, 'img.png'), 'old');
+
+      const remoteNoteDir = path.join(syncDir, 'images', 'kept-note');
+      fs.mkdirSync(remoteNoteDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNoteDir, 'img.png'), 'new');
+
+      await gitSync.pullImages(localImagesDir);
+      assert.ok(!fs.existsSync(localNoteDir));
+      assert.ok(fs.existsSync(path.join(localImagesDir, 'kept-note', 'img.png')));
+    });
+
+    it('returns 0 when remote images dir does not exist', async () => {
+      const count = await gitSync.pullImages(localImagesDir);
+      assert.strictEqual(count, 0);
+    });
+
+    it('creates local dir if missing', async () => {
+      fs.rmSync(localImagesDir, { recursive: true, force: true });
+      const remoteNoteDir = path.join(syncDir, 'images', 'note-1');
+      fs.mkdirSync(remoteNoteDir, { recursive: true });
+      fs.writeFileSync(path.join(remoteNoteDir, 'img.png'), 'data');
+
+      const count = await gitSync.pullImages(localImagesDir);
+      assert.strictEqual(count, 1);
+      assert.ok(fs.existsSync(path.join(localImagesDir, 'note-1', 'img.png')));
+    });
+
+    it('handles multiple note subdirectories', async () => {
+      const dir1 = path.join(syncDir, 'images', 'note-1');
+      const dir2 = path.join(syncDir, 'images', 'note-2');
+      fs.mkdirSync(dir1, { recursive: true });
+      fs.mkdirSync(dir2, { recursive: true });
+      fs.writeFileSync(path.join(dir1, 'a.png'), 'a');
+      fs.writeFileSync(path.join(dir2, 'b.png'), 'b');
+
+      const count = await gitSync.pullImages(localImagesDir);
+      assert.strictEqual(count, 2);
+    });
+  });
 });

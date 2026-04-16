@@ -5,6 +5,33 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-16
+
+### Added
+- **Image insertion in notes**: Full lifecycle image support for Markdown notes
+  - `ynote.insertImage` (`Ctrl+Shift+I`): Open file picker to insert a local image into the active note
+  - **Clipboard paste**: Paste screenshots/images directly into notes via `DocumentPasteEditProvider` (auto-saves as `paste-{timestamp}.png`)
+  - **Drag-and-drop**: Drag image files from the file explorer into a note via `DocumentDropEditProvider`
+  - Images stored in per-note subdirectories: `globalStorageUri/images/{noteId}/{timestamp-name}.ext`
+  - Automatic Markdown image link insertion (`![alt](../images/{noteId}/{filename})`)
+  - Supported formats: PNG, JPG, JPEG, GIF, WebP, SVG, BMP
+- **Image sync**: Push/pull images alongside notes and readings to GitHub (`images/{noteId}/` directory in sync repo)
+  - Binary file comparison (size + content) for efficient sync
+  - Per-note subdirectory sync with automatic cleanup of removed notes
+- **Auto-cleanup on note delete**: Deleting a note (via Remove, Delete, or Cut) automatically removes its associated images directory
+- **Configuration**: `ynote.maxImageSizeMB` setting (default: 10) for image size warnings
+
+### Changed
+- Sync commands now include image counts in progress messages
+- `gitSync.sync()` and `gitSync.pull()` accept optional `localImagesDir` parameter
+
+### Internal
+- New `src/services/imageService.ts` — image save, delete, list, path generation, validation
+- New `src/commands/insertImage.ts` — insert image command handler
+- New `src/providers/imagePasteProvider.ts` — `ImagePasteProvider` + `ImageDropProvider`
+- New `src/test/imageService.test.ts` — 20 image service tests
+- Extended `src/test/gitSync.test.ts` — 11 new image sync tests
+
 ## [0.2.2] - 2026-04-16
 
 ### Added

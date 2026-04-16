@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { JsonDb } from '../database/jsonDb';
 import { NoteDb } from '../database/noteDb';
 import { GitSync } from '../services/gitSync';
+import { ImageService } from '../services/imageService';
 
 function checkRepoUrl(): boolean {
   const repoUrl = vscode.workspace.getConfiguration('ynote').get<string>('githubRepoUrl', '');
@@ -24,7 +25,8 @@ export function registerSyncCommand(
   db: JsonDb,
   noteDb: NoteDb,
   gitSync: GitSync,
-  onChanged: () => void
+  onChanged: () => void,
+  imageService?: ImageService
 ): vscode.Disposable {
   return vscode.commands.registerCommand('ynote.syncToGithub', async () => {
     if (!checkRepoUrl()) { return; }
@@ -36,7 +38,7 @@ export function registerSyncCommand(
           title: 'YNote: Pushing to GitHub...',
           cancellable: false,
         },
-        async () => gitSync.sync(db.getDbPath(), noteDb.getNotesDir())
+        async () => gitSync.sync(db.getDbPath(), noteDb.getNotesDir(), imageService?.getBaseImagesDir())
       );
       onChanged();
       vscode.window.showInformationMessage(result);
@@ -52,7 +54,8 @@ export function registerPullCommand(
   db: JsonDb,
   noteDb: NoteDb,
   gitSync: GitSync,
-  onChanged: () => void
+  onChanged: () => void,
+  imageService?: ImageService
 ): vscode.Disposable {
   return vscode.commands.registerCommand('ynote.pullFromGithub', async () => {
     if (!checkRepoUrl()) { return; }
@@ -64,7 +67,7 @@ export function registerPullCommand(
           title: 'YNote: Pulling from GitHub...',
           cancellable: false,
         },
-        async () => gitSync.pull(db.getDbPath(), noteDb.getNotesDir())
+        async () => gitSync.pull(db.getDbPath(), noteDb.getNotesDir(), imageService?.getBaseImagesDir())
       );
       onChanged();
       vscode.window.showInformationMessage(result);

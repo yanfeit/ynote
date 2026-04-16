@@ -61,8 +61,8 @@ YNote is a lightweight note-taking plugin for information management built for d
 │  │ (sidebar)│ │ (sidebar)│ │ cards+search │ │ push/pull│            │
 │  └──────────┘ └──────────┘ └──────────────┘ └────┬─────┘            │
 │       ↑             ↑                             │                  │
-│       └─── Push/Pull buttons in both ────────────┘                   │
-│            sidebar title bars                                        │
+│       └─── Push/Pull/Settings in ────────────────┘                   │
+│            Manage sidebar section                                    │
 └──────────────────────────────────────────┬───────────────────────────┘
                                            ▼
                                   ┌─────────────────┐
@@ -76,17 +76,21 @@ YNote is a lightweight note-taking plugin for information management built for d
 ### Component Responsibilities
 | Component | File | Role |
 |-----------|------|------|
-| **Entry point** | `extension.ts` | Registers 23 commands, 2 tree views, file watcher, wires dependencies |
+| **Entry point** | `extension.ts` | Registers 25 commands, 3 tree views, file watcher, wires dependencies |
 | **Data models** | `models/reading.ts`, `models/note.ts` | `Reading` interface (11 fields) and `Note` interface (6 fields) |
 | **Readings DB** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL, mutation lock, atomic writes |
 | **Notes DB** | `database/noteDb.ts` | Markdown files with YAML front matter, title-based filenames, auto-migration from UUID names |
+| **Image Service** | `services/imageService.ts` | Per-note image storage, save/delete/list, filename generation, format validation |
 | **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio (OG, JSON-LD, meta, paragraph fallback); content keyword extraction |
 | **Sync** | `services/gitSync.ts` | Clone/pull/push via git CLI; per-entry JSON files for readings, raw `.md` for notes; diff-based sync |
 | **Add command** | `commands/addReading.ts` | URL input → fetch → confirm → tag → save → refresh UI |
 | **Sync commands** | `commands/syncToGithub.ts` | Push/pull with progress notification + error UI |
-| **Context menus** | `commands/contextMenu.ts` | Cut, Copy, Rename, Permanent Delete, Download — for both readings and notes |
+| **Context menus** | `commands/contextMenu.ts` | Cut, Copy, Rename, Permanent Delete, Download — for both readings and notes; auto-cleanup of note images on delete |
+| **Insert image** | `commands/insertImage.ts` | File picker → save to note's image dir → insert Markdown link at cursor |
 | **Readings tree** | `providers/readingsTreeProvider.ts` | Year-month groups → reading items → detail rows (author, org, abstract, source, tags, URL) |
 | **Notes tree** | `providers/notesTreeProvider.ts` | Year-month groups → note items → tag details |
+| **Actions tree** | `providers/actionsTreeProvider.ts` | Manage section: Settings, Push to GitHub, Pull from GitHub |
+| **Image paste/drop** | `providers/imagePasteProvider.ts` | DocumentPasteEditProvider + DocumentDropEditProvider for image insertion in notes |
 | **Dashboard** | `webview/DashboardPanel.ts` | HTML card layout with inline search, rich-text comment editor, year-month sections |
 
 ## Architecture
@@ -98,7 +102,8 @@ YNote is a lightweight note-taking plugin for information management built for d
 ### Data Storage
 - **Readings**: JSON file (`readings.json`) in `context.globalStorageUri` — git-friendly diffs, human-readable
 - **Notes**: Individual Markdown files (`{sanitized-title}.md`) in `globalStorageUri/notes/` — YAML front matter for metadata, body for content
-- **Sync**: Manual git push/pull to a private GitHub repo; readings as individual `readings/{id}.json` files, notes as `notes/{title}.md` files
+- **Images**: Per-note subdirectories in `globalStorageUri/images/{noteId}/` — timestamped filenames, binary files (PNG, JPG, etc.)
+- **Sync**: Manual git push/pull to a private GitHub repo; readings as individual `readings/{id}.json` files, notes as `notes/{title}.md` files, images as `images/{noteId}/{filename}` files
 
 ### Key Dependencies
 - `axios` — HTTP requests for fetching web pages
@@ -108,7 +113,7 @@ YNote is a lightweight note-taking plugin for information management built for d
 ### Source Structure
 ```
 src/
-├── extension.ts                 # Entry point: activate/deactivate, 23 command registrations
+├── extension.ts                 # Entry point: activate/deactivate, 25 command registrations
 ├── models/
 │   ├── reading.ts               # Reading interface (id, url, title, author, org, abstract, dates, tags, source, comment)
 │   └── note.ts                  # Note interface (id, title, createdAt, updatedAt, tags, filePath)
@@ -117,29 +122,34 @@ src/
 │   └── noteDb.ts                # Notes Markdown CRUD (YAML front matter, title-based filenames, migration)
 ├── services/
 │   ├── metadataFetcher.ts       # URL → metadata extraction + content keyword suggestion
-│   └── gitSync.ts               # Git CLI wrapper: diff-based push, pull, per-entry files, notes sync
+│   ├── imageService.ts          # Per-note image storage: save, delete, list, path generation
+│   └── gitSync.ts               # Git CLI wrapper: diff-based push, pull, per-entry files, notes sync, image sync
 ├── commands/
 │   ├── addReading.ts            # Add reading from URL (fetch, confirm, tag, save)
+│   ├── insertImage.ts           # Insert image into note (file picker, save, markdown link)
 │   ├── syncToGithub.ts          # Push & pull sync commands with progress UI
 │   └── contextMenu.ts           # Cut/Copy/Rename/Delete/Download for readings and notes
 ├── providers/
 │   ├── readingsTreeProvider.ts  # Sidebar tree: year-month → reading → details
-│   └── notesTreeProvider.ts     # Sidebar tree: year-month → note → tags
+│   ├── notesTreeProvider.ts     # Sidebar tree: year-month → note → tags
+│   ├── actionsTreeProvider.ts   # Manage section: Settings, Push, Pull actions
+│   └── imagePasteProvider.ts    # DocumentPasteEditProvider + DocumentDropEditProvider for images
 ├── webview/
 │   └── DashboardPanel.ts        # Webview: card layout, search, rich-text comment editor
 └── test/
-    ├── jsonDb.test.ts           # 19 tests: CRUD, concurrency, robustness
-    ├── noteDb.test.ts           # 19 tests: CRUD, front matter, migration
+    ├── jsonDb.test.ts           # 23 tests: CRUD, concurrency, robustness
+    ├── noteDb.test.ts           # 25 tests: CRUD, front matter, migration
     ├── metadataFetcher.test.ts  # 21 tests: OG, JSON-LD, keywords
-    ├── gitSync.test.ts          # 38 tests: diff, migration, notes sync
+    ├── gitSync.test.ts          # 39 tests: diff, migration, notes sync, image sync
+    ├── imageService.test.ts     # 20 tests: save, delete, list, collision, validation
     ├── mock/vscode.ts           # VS Code API mock for unit tests
     └── integration/
         └── extension.test.ts    # Manual integration test checklist
 ```
 
 ### Codebase Size
-- **Production**: ~3,400 lines TypeScript (15 source files)
-- **Tests**: ~1,200 lines (97 automated tests + manual integration checklist)
+- **Production**: ~3,600 lines TypeScript (17 source files)
+- **Tests**: ~1,700 lines (128 automated tests + manual integration checklist)
 
 ## Build & Development Commands
 ```bash
@@ -186,6 +196,7 @@ npx @vscode/vsce package   # Produces .vsix file
 | `ynote.githubRepoUrl` | `""` | Private GitHub repo URL for sync |
 | `ynote.maxAbstractLength` | `500` | Max extracted abstract length |
 | `ynote.fallbackDescriptionLength` | `100` | Fallback description length |
+| `ynote.maxImageSizeMB` | `10` | Max image file size in MB (warning threshold) |
 | `ynote.fetchTimeout` | `10000` | HTTP fetch timeout (ms) |
 
 ## Extension Commands
@@ -203,7 +214,10 @@ npx @vscode/vsce package   # Produces .vsix file
 | `ynote.openNote` | — | Open note in editor |
 | `ynote.removeNote` | — | Remove a note |
 | `ynote.editNoteTags` | — | Edit tags on a note |
+| `ynote.insertImage` | `Ctrl+Shift+I` | Insert image into active note (file picker, clipboard paste, drag-drop) |
 | `ynote.refreshNotes` | — | Refresh notes tree view |
+| `ynote.openSettings` | — | Open YNote configuration in VS Code settings |
+| `ynote.showReadingInDashboard` | — | Open Dashboard and scroll to a specific reading |
 | `ynote.cutReading` | — | Cut reading (copy URL + delete) |
 | `ynote.copyReading` | — | Copy reading URL to clipboard |
 | `ynote.renameReading` | — | Rename reading title |
@@ -219,10 +233,10 @@ npx @vscode/vsce package   # Produces .vsix file
 ```bash
 npm test             # Run 97 unit tests (mocha)
 ```
-- **JsonDb tests** (`jsonDb.test.ts`): CRUD, concurrent writes, robustness (corrupted JSON, bad timestamps)
-- **NoteDb tests** (`noteDb.test.ts`): CRUD, front matter parsing, UUID migration, concurrent writes
-- **MetadataFetcher tests** (`metadataFetcher.test.ts`): OG/meta/JSON-LD extraction, keyword extraction
-- **GitSync tests** (`gitSync.test.ts`): Diff computation, migration, notes sync, individual file I/O
+- **JsonDb tests** (`jsonDb.test.ts`): 23 tests — CRUD, concurrent writes, robustness (corrupted JSON, bad timestamps)
+- **NoteDb tests** (`noteDb.test.ts`): 25 tests — CRUD, front matter parsing, UUID migration, concurrent writes
+- **MetadataFetcher tests** (`metadataFetcher.test.ts`): 21 tests — OG/meta/JSON-LD extraction, keyword extraction
+- **GitSync tests** (`gitSync.test.ts`): 28 tests — Diff computation, migration, notes sync, individual file I/O
 - **Integration** (`extension.test.ts`): Manual checklist for Extension Host (9 scenarios)
 - Tests mock `vscode` module for unit testing outside Extension Host
 

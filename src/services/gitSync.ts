@@ -85,11 +85,15 @@ export class GitSync {
     return path.join(this.syncDir, 'notes');
   }
 
+  get imagesDir(): string {
+    return path.join(this.syncDir, 'images');
+  }
+
   /**
    * Push local readings to cloud. Cloud becomes exactly what local has.
    * Uses incremental file updates: only changed entries are written, removed entries are deleted.
    */
-  async sync(dbPath: string, localNotesDir?: string): Promise<string> {
+  async sync(dbPath: string, localNotesDir?: string, localImagesDir?: string): Promise<string> {
     const repoUrl = this.getRepoUrl();
     if (!repoUrl) {
       throw new Error('GitHub repo URL not configured. Set ynote.githubRepoUrl in settings.');
@@ -132,6 +136,12 @@ export class GitSync {
       noteCount = await this.syncNotes(localNotesDir);
     }
 
+    // Sync images (binary files in per-note subdirectories)
+    let imageCount = 0;
+    if (localImagesDir) {
+      imageCount = await this.syncImages(localImagesDir);
+    }
+
     // Stage all changes, commit, push
     await this.git(['add', '-A']);
 
@@ -148,6 +158,9 @@ export class GitSync {
     if (noteCount > 0) {
       msg += `, ${noteCount} notes`;
     }
+    if (imageCount > 0) {
+      msg += `, ${imageCount} images`;
+    }
     msg += ' to GitHub.';
     return msg;
   }
@@ -155,7 +168,7 @@ export class GitSync {
   /**
    * Pull readings from cloud. Local becomes exactly what cloud has.
    */
-  async pull(dbPath: string, localNotesDir?: string): Promise<string> {
+  async pull(dbPath: string, localNotesDir?: string, localImagesDir?: string): Promise<string> {
     const repoUrl = this.getRepoUrl();
     if (!repoUrl) {
       throw new Error('GitHub repo URL not configured. Set ynote.githubRepoUrl in settings.');
@@ -189,9 +202,18 @@ export class GitSync {
       noteCount = await this.pullNotes(localNotesDir);
     }
 
+    // Pull images (binary files in per-note subdirectories)
+    let imageCount = 0;
+    if (localImagesDir) {
+      imageCount = await this.pullImages(localImagesDir);
+    }
+
     let msg = `Pulled ${remoteReadings.length} readings`;
     if (noteCount > 0) {
       msg += ` and ${noteCount} notes`;
+    }
+    if (imageCount > 0) {
+      msg += ` and ${imageCount} images`;
     }
     msg += ' from GitHub.';
     return msg;
@@ -355,6 +377,137 @@ export class GitSync {
     }
 
     return remoteFiles.length;
+  }
+
+  /**
+   * Sync local images to sync-repo/images/.
+   * Images are organized in per-note subdirectories: images/{noteId}/{filename}.
+   * Copies new/changed files, removes deleted note directories. Returns total image count.
+   */
+  async syncImages(localImagesDir: string): Promise<number> {
+    await fs.promises.mkdir(this.imagesDir, { recursive: true });
+
+    // Read local note subdirectories
+    let localSubdirs: string[] = [];
+    try {
+      const entries = await fs.promises.readdir(localImagesDir, { withFileTypes: true });
+      localSubdirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    } catch (err: unknown) {
+      if (this.isFileNotFound(err)) { return 0; }
+      throw err;
+    }
+
+    let totalCount = 0;
+
+    // Copy local → remote for each note subdirectory
+    for (const subdir of localSubdirs) {
+      const localSubPath = path.join(localImagesDir, subdir);
+      const remoteSubPath = path.join(this.imagesDir, subdir);
+      await fs.promises.mkdir(remoteSubPath, { recursive: true });
+
+      const localFiles = await fs.promises.readdir(localSubPath);
+      const remoteFiles = new Set<string>();
+      try {
+        for (const f of await fs.promises.readdir(remoteSubPath)) {
+          remoteFiles.add(f);
+        }
+      } catch { /* empty */ }
+
+      for (const file of localFiles) {
+        const localFilePath = path.join(localSubPath, file);
+        const remoteFilePath = path.join(remoteSubPath, file);
+
+        // Compare by file size for binary files
+        let needsCopy = true;
+        if (remoteFiles.has(file)) {
+          try {
+            const localStat = await fs.promises.stat(localFilePath);
+            const remoteStat = await fs.promises.stat(remoteFilePath);
+            if (localStat.size === remoteStat.size) {
+              // Same size — compare content
+              const localBuf = await fs.promises.readFile(localFilePath);
+              const remoteBuf = await fs.promises.readFile(remoteFilePath);
+              needsCopy = !localBuf.equals(remoteBuf);
+            }
+          } catch { /* treat as needing copy */ }
+        }
+
+        if (needsCopy) {
+          await fs.promises.copyFile(localFilePath, remoteFilePath);
+        }
+        totalCount++;
+      }
+
+      // Delete remote files not in local
+      for (const file of remoteFiles) {
+        if (!localFiles.includes(file)) {
+          try {
+            await fs.promises.unlink(path.join(remoteSubPath, file));
+          } catch { /* already gone */ }
+        }
+      }
+    }
+
+    // Delete remote subdirectories not in local
+    const localSubdirSet = new Set(localSubdirs);
+    try {
+      const remoteEntries = await fs.promises.readdir(this.imagesDir, { withFileTypes: true });
+      for (const entry of remoteEntries) {
+        if (entry.isDirectory() && !localSubdirSet.has(entry.name)) {
+          await fs.promises.rm(path.join(this.imagesDir, entry.name), { recursive: true, force: true });
+        }
+      }
+    } catch { /* empty */ }
+
+    return totalCount;
+  }
+
+  /**
+   * Pull images from sync-repo/images/ to local images directory.
+   * Overwrites local with remote content. Returns total image count.
+   */
+  async pullImages(localImagesDir: string): Promise<number> {
+    await fs.promises.mkdir(localImagesDir, { recursive: true });
+
+    let remoteSubdirs: string[] = [];
+    try {
+      const entries = await fs.promises.readdir(this.imagesDir, { withFileTypes: true });
+      remoteSubdirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    } catch (err: unknown) {
+      if (this.isFileNotFound(err)) { return 0; }
+      throw err;
+    }
+
+    let totalCount = 0;
+
+    // Copy remote → local for each note subdirectory
+    for (const subdir of remoteSubdirs) {
+      const remoteSubPath = path.join(this.imagesDir, subdir);
+      const localSubPath = path.join(localImagesDir, subdir);
+      await fs.promises.mkdir(localSubPath, { recursive: true });
+
+      const files = await fs.promises.readdir(remoteSubPath);
+      for (const file of files) {
+        await fs.promises.copyFile(
+          path.join(remoteSubPath, file),
+          path.join(localSubPath, file)
+        );
+        totalCount++;
+      }
+    }
+
+    // Delete local subdirectories not in remote
+    const remoteSubdirSet = new Set(remoteSubdirs);
+    try {
+      const localEntries = await fs.promises.readdir(localImagesDir, { withFileTypes: true });
+      for (const entry of localEntries) {
+        if (entry.isDirectory() && !remoteSubdirSet.has(entry.name)) {
+          await fs.promises.rm(path.join(localImagesDir, entry.name), { recursive: true, force: true });
+        }
+      }
+    } catch { /* empty */ }
+
+    return totalCount;
   }
 
   private async pullRemote(): Promise<void> {

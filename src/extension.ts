@@ -9,12 +9,16 @@ import { DashboardPanel } from './webview/DashboardPanel';
 import { registerAddReadingCommand } from './commands/addReading';
 import { registerSyncCommand, registerPullCommand } from './commands/syncToGithub';
 import { registerContextMenuCommands } from './commands/contextMenu';
+import { registerInsertImageCommand } from './commands/insertImage';
+import { ImageService } from './services/imageService';
+import { ImagePasteProvider, ImageDropProvider } from './providers/imagePasteProvider';
 import { fetchMetadata } from './services/metadataFetcher';
 
 export function activate(context: vscode.ExtensionContext): void {
   const db = new JsonDb(context);
   const noteDb = new NoteDb(context);
   const gitSync = new GitSync(context);
+  const imageService = new ImageService(context);
   const treeProvider = new ReadingsTreeProvider(db);
   const notesTreeProvider = new NotesTreeProvider(noteDb);
   const actionsTreeProvider = new ActionsTreeProvider();
@@ -48,9 +52,10 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register commands
   context.subscriptions.push(
     registerAddReadingCommand(context, db, onChanged),
-    registerSyncCommand(context, db, noteDb, gitSync, onChanged),
-    registerPullCommand(context, db, noteDb, gitSync, onChanged),
-    ...registerContextMenuCommands(context, db, noteDb, onChanged),
+    registerSyncCommand(context, db, noteDb, gitSync, onChanged, imageService),
+    registerPullCommand(context, db, noteDb, gitSync, onChanged, imageService),
+    ...registerContextMenuCommands(context, db, noteDb, onChanged, imageService),
+    registerInsertImageCommand(noteDb, imageService),
 
     vscode.commands.registerCommand('ynote.removeReading', async (item: ReadingItem) => {
       if (!item?.reading) { return; }
@@ -233,7 +238,9 @@ export function activate(context: vscode.ExtensionContext): void {
       );
       if (confirm === 'Remove') {
         try {
-          await noteDb.remove(item.note.id);
+          const noteId = item.note.id;
+          await noteDb.remove(noteId);
+          try { await imageService.deleteNoteImages(noteId); } catch { /* non-fatal */ }
           onChanged();
           vscode.window.showInformationMessage('Note removed.');
         } catch (err: unknown) {
@@ -293,8 +300,33 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
-  // Watch for saves to note files → update updatedAt in front matter
+  // Register image paste and drop providers for notes
   const notesDirPath = noteDb.getNotesDir();
+  const noteSelector: vscode.DocumentSelector = {
+    language: 'markdown',
+    pattern: `${notesDirPath}/**`,
+  };
+
+  context.subscriptions.push(
+    vscode.languages.registerDocumentPasteEditProvider(
+      noteSelector,
+      new ImagePasteProvider(noteDb, imageService),
+      {
+        providedPasteEditKinds: [vscode.DocumentDropOrPasteEditKind.Empty.append('ynote', 'image', 'paste')],
+        pasteMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'],
+      }
+    ),
+    vscode.languages.registerDocumentDropEditProvider(
+      noteSelector,
+      new ImageDropProvider(noteDb, imageService),
+      {
+        providedDropEditKinds: [vscode.DocumentDropOrPasteEditKind.Empty.append('ynote', 'image', 'drop')],
+        dropMimeTypes: ['text/uri-list'],
+      }
+    )
+  );
+
+  // Watch for saves to note files → update updatedAt in front matter
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument(async (doc) => {
       const filePath = doc.uri.fsPath;

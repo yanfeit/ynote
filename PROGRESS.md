@@ -1,5 +1,50 @@
 # YNote Development Progress
 
+## v0.3.0 — Image Support for Notes
+> Completed: 2026-04-16
+
+### Image Service
+| Task | Status | Notes |
+|------|--------|-------|
+| ImageService class | Done | `src/services/imageService.ts` — save, delete, list, path generation, validation |
+| Per-note subdirectories | Done | `globalStorageUri/images/{noteId}/` with UUID validation |
+| Timestamp-based naming | Done | `{YYYYMMDD-HHmmss}-{sanitized-name}.{ext}` with collision handling |
+| File format validation | Done | Rejects non-image extensions (.exe, .js, etc.) |
+| Sanitize filenames | Done | Strip disallowed chars, truncate, collapse dashes |
+
+### Image Insertion
+| Task | Status | Notes |
+|------|--------|-------|
+| Insert Image command | Done | `ynote.insertImage` — file picker → save → insert markdown link at cursor |
+| Keybinding | Done | `Ctrl+Shift+I` / `Cmd+Shift+I` when editing markdown |
+| Clipboard paste | Done | `ImagePasteProvider` — paste screenshots, saves as `paste-{timestamp}.png` |
+| Drag-and-drop | Done | `ImageDropProvider` — drag images from file explorer into notes |
+| Markdown link format | Done | `![alt](../images/{noteId}/{filename})` — works with VS Code preview |
+
+### Image Sync
+| Task | Status | Notes |
+|------|--------|-------|
+| syncImages() | Done | Binary comparison (size + content), per-note subdirectory sync |
+| pullImages() | Done | Mirror remote → local, delete unmatched local directories |
+| Sync integration | Done | `sync()` and `pull()` accept `localImagesDir` parameter |
+| Sync messages | Done | Image counts included in push/pull progress messages |
+
+### Image Cleanup
+| Task | Status | Notes |
+|------|--------|-------|
+| Delete note cleanup | Done | `ynote.deleteNote` removes `images/{noteId}/` |
+| Remove note cleanup | Done | `ynote.removeNote` removes `images/{noteId}/` |
+| Cut note cleanup | Done | `ynote.cutNote` removes `images/{noteId}/` |
+| Non-fatal errors | Done | Image cleanup failures don't block note deletion |
+
+### Testing
+| Task | Status | Notes |
+|------|--------|-------|
+| ImageService tests | Done | 20 tests: sanitize, generate, save, delete, list, collision, validation |
+| GitSync image tests | Done | 11 tests: syncImages, pullImages, binary files, subdirectories |
+
+---
+
 ## v0.1.0 — Initial Release
 > Completed: 2026-04-01
 
@@ -165,6 +210,46 @@
 | CLAUDE.md updated | Done | Full architecture rewrite reflecting v0.2.1 codebase |
 | CHANGELOG.md updated | Done | v0.2.1 entry with all changes documented |
 | PROGRESS.md updated | Done | Full history: v0.1.0 → v0.1.1 → v0.2.0 → v0.2.1 |
+
+---
+
+## v0.2.2 — Manage Section & Performance
+> Completed: 2026-04-16
+
+### Manage Sidebar Section
+| Task | Status | Notes |
+|------|--------|-------|
+| ActionsTreeProvider | Done | `src/providers/actionsTreeProvider.ts` — flat list: Settings, Push, Pull |
+| Settings command | Done | `ynote.openSettings` — opens VS Code settings filtered to `@ext:yanfeit.ynote` |
+| Sync buttons consolidated | Done | Push/Pull removed from Readings and Notes title bars, now in Manage section |
+
+### Click-to-Dashboard
+| Task | Status | Notes |
+|------|--------|-------|
+| showReadingInDashboard command | Done | `ynote.showReadingInDashboard` — opens Dashboard webview and scrolls to reading |
+| ReadingItem click behavior | Done | Single-click opens Dashboard (previously opened URL in browser); browser open remains in context menu |
+| Scroll + highlight | Done | Dashboard auto-opens section, smooth-scrolls to card, highlights border for 2 seconds |
+
+### Tree View Improvements
+| Task | Status | Notes |
+|------|--------|-------|
+| Auto-expand current month | Done | Both Readings and Notes tree views auto-expand current YYYY-MM group; others collapsed |
+| NoteItem collapsible state | Done | Notes without tags show as flat items (no expand arrow) |
+
+### Performance
+| Task | Status | Notes |
+|------|--------|-------|
+| Lazy-load axios and cheerio | Done | Heavy dependencies only loaded when adding a reading, not on activation |
+| One-time UUID migration | Done | `migrateUuidFilenames()` runs once per session instead of every `getAll()` |
+| Parallel note file reads | Done | `Promise.all()` for concurrent parsing instead of sequential |
+
+### Documentation
+| Task | Status | Notes |
+|------|--------|-------|
+| CLAUDE.md updated | Done | Fixed command count (25), tree view count (3), codebase stats, test counts |
+| CHANGELOG.md updated | Done | v0.2.2 entry with all changes documented |
+| PROGRESS.md updated | Done | Added v0.2.2 section; full history: v0.1.0 → v0.1.1 → v0.2.0 → v0.2.1 → v0.2.2 |
+| 25 total commands | Done | Added `ynote.openSettings` and `ynote.showReadingInDashboard` |
 
 ## Known Issues
 - None

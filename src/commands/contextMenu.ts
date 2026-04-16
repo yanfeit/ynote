@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { JsonDb } from '../database/jsonDb';
 import { NoteDb } from '../database/noteDb';
+import { ImageService } from '../services/imageService';
 import { ReadingItem } from '../providers/readingsTreeProvider';
 import { NoteItem } from '../providers/notesTreeProvider';
 
@@ -13,7 +14,8 @@ export function registerContextMenuCommands(
   context: vscode.ExtensionContext,
   db: JsonDb,
   noteDb: NoteDb,
-  onChanged: () => void
+  onChanged: () => void,
+  imageService?: ImageService
 ): vscode.Disposable[] {
   return [
     // ── Reading context menu ──
@@ -144,7 +146,11 @@ export function registerContextMenuCommands(
       );
       if (confirm === 'Delete') {
         try {
-          await noteDb.remove(item.note.id);
+          const noteId = item.note.id;
+          await noteDb.remove(noteId);
+          if (imageService) {
+            try { await imageService.deleteNoteImages(noteId); } catch { /* non-fatal */ }
+          }
           onChanged();
           vscode.window.showInformationMessage('Note cut (content copied, file deleted).');
         } catch (err: unknown) {
@@ -181,7 +187,11 @@ export function registerContextMenuCommands(
       );
       if (confirm === 'Delete') {
         try {
-          await noteDb.remove(item.note.id);
+          const noteId = item.note.id;
+          await noteDb.remove(noteId);
+          if (imageService) {
+            try { await imageService.deleteNoteImages(noteId); } catch { /* non-fatal */ }
+          }
           onChanged();
           vscode.window.showInformationMessage('Note permanently deleted.');
         } catch (err: unknown) {
