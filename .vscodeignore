@@ -1,7 +1,10 @@
 .vscode-test/
 src/
+out/
+node_modules/
 *.vsix
 tsconfig.json
+esbuild.js
 CLAUDE.md
 PROGRESS.md
 .gitignore

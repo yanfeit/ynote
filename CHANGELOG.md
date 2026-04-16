@@ -5,7 +5,7 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2026-04-16
+## [0.2.3] - 2026-04-16
 
 ### Added
 - **Image insertion in notes**: Full lifecycle image support for Markdown notes
@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Sync commands now include image counts in progress messages
 - `gitSync.sync()` and `gitSync.pull()` accept optional `localImagesDir` parameter
+- **esbuild bundling**: Extension now bundled with esbuild into a single `dist/extension.js` file, reducing VSIX size and improving load performance (no more `node_modules/` in package)
+- Updated `.vscodeignore` to exclude `node_modules/`, `out/`, and `esbuild.js`
 
 ### Internal
 - New `src/services/imageService.ts` — image save, delete, list, path generation, validation
@@ -31,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `src/providers/imagePasteProvider.ts` — `ImagePasteProvider` + `ImageDropProvider`
 - New `src/test/imageService.test.ts` — 20 image service tests
 - Extended `src/test/gitSync.test.ts` — 11 new image sync tests
+- Added `esbuild.js` build configuration
 
 ## [0.2.2] - 2026-04-16
 

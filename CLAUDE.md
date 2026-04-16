@@ -153,10 +153,12 @@ src/
 
 ## Build & Development Commands
 ```bash
-npm run compile      # Compile TypeScript → out/
-npm run watch        # Watch mode compilation
+npm run compile      # Type-check + esbuild bundle → dist/extension.js
+npm run package      # Type-check + production bundle (minified)
+npm run watch        # esbuild watch mode
+npm run check-types  # TypeScript type-check only (no emit)
 npm run lint         # Type-check without emit
-npm test             # Compile + run mocha tests
+npm test             # tsc → out/ + run mocha tests
 ```
 
 ### Running the Extension
@@ -165,7 +167,7 @@ npm test             # Compile + run mocha tests
 
 ### Packaging
 ```bash
-npx @vscode/vsce package   # Produces .vsix file
+npx @vscode/vsce package   # Produces .vsix file (uses esbuild bundle, excludes node_modules)
 ```
 
 ## Coding Conventions
