@@ -107,6 +107,7 @@ function serializeFrontMatter(meta: { id: string; title: string; createdAt: stri
 export class NoteDb {
   private notesDir: string;
   private mutationQueue: Promise<void> = Promise.resolve();
+  private migrated = false;
 
   constructor(private context: vscode.ExtensionContext) {
     this.notesDir = path.join(context.globalStorageUri.fsPath, NOTES_DIR);
@@ -183,14 +184,12 @@ export class NoteDb {
 
     try {
       const files = await fs.promises.readdir(this.notesDir);
-      for (const file of files) {
-        if (file.endsWith('.md')) {
-          const filePath = path.join(this.notesDir, file);
-          const note = await this.parseNoteFile(filePath);
-          if (note) {
-            notes.push(note);
-          }
-        }
+      const mdFiles = files.filter(file => file.endsWith('.md'));
+      const results = await Promise.all(
+        mdFiles.map(file => this.parseNoteFile(path.join(this.notesDir, file)))
+      );
+      for (const note of results) {
+        if (note) { notes.push(note); }
       }
     } catch (err: unknown) {
       if (!this.isFileNotFound(err)) {
@@ -411,6 +410,9 @@ export class NoteDb {
    * Called during getAll() to auto-migrate existing notes.
    */
   private async migrateUuidFilenames(): Promise<void> {
+    if (this.migrated) { return; }
+    this.migrated = true;
+
     try {
       const files = await fs.promises.readdir(this.notesDir);
       for (const file of files) {

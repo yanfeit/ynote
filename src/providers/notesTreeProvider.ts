@@ -73,11 +73,17 @@ class NoteYearMonthGroup extends vscode.TreeItem {
 export class NoteItem extends vscode.TreeItem {
   constructor(public readonly note: Note) {
     const date = new Date(note.updatedAt).toLocaleDateString();
-    super(note.title, vscode.TreeItemCollapsibleState.Collapsed);
+    const hasChildren = note.tags.length > 0;
+    super(note.title, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
     this.description = date;
     this.tooltip = `${note.title}\nUpdated: ${new Date(note.updatedAt).toLocaleString()}`;
     this.contextValue = 'note';
     this.iconPath = new vscode.ThemeIcon('note');
+    this.command = {
+      command: 'ynote.openNote',
+      title: 'Open Note',
+      arguments: [this],
+    };
   }
 }
 

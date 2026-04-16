@@ -1,5 +1,4 @@
-import axios from 'axios';
-import * as cheerio from 'cheerio';
+import type { CheerioAPI } from 'cheerio';
 import * as vscode from 'vscode';
 import { Reading } from '../models/reading';
 
@@ -36,6 +35,10 @@ export interface FetchResult {
 }
 
 export async function fetchMetadata(url: string): Promise<FetchResult> {
+  // Lazy-load heavy dependencies (only when actually fetching, not on extension activation)
+  const { default: axios } = await import('axios');
+  const cheerio = await import('cheerio');
+
   const config = vscode.workspace.getConfiguration('ynote');
   const timeout = config.get<number>('fetchTimeout', 10000);
   const maxAbstract = config.get<number>('maxAbstractLength', 500);
@@ -93,7 +96,7 @@ export async function fetchMetadata(url: string): Promise<FetchResult> {
 }
 
 function extractFromHtml(
-  $: cheerio.CheerioAPI,
+  $: CheerioAPI,
   maxAbstract: number,
   fallbackLen: number,
   source: string
@@ -143,7 +146,7 @@ function extractFromHtml(
   return { title, author, organization, abstract, source, suggestedTags: extractContentKeywords($, title) };
 }
 
-function getMeta($: cheerio.CheerioAPI, property: string): string {
+function getMeta($: CheerioAPI, property: string): string {
   const content =
     $(`meta[property="${property}"]`).attr('content') ||
     $(`meta[name="${property}"]`).attr('content') ||
@@ -151,11 +154,11 @@ function getMeta($: cheerio.CheerioAPI, property: string): string {
   return cleanText(content);
 }
 
-function getMetaByName($: cheerio.CheerioAPI, name: string): string {
+function getMetaByName($: CheerioAPI, name: string): string {
   return cleanText($(`meta[name="${name}"]`).attr('content') || '');
 }
 
-function extractJsonLdField($: cheerio.CheerioAPI, field: string): string {
+function extractJsonLdField($: CheerioAPI, field: string): string {
   const scripts = $('script[type="application/ld+json"]');
   for (let i = 0; i < scripts.length; i++) {
     try {
@@ -181,7 +184,7 @@ function extractJsonLdField($: cheerio.CheerioAPI, field: string): string {
   return '';
 }
 
-function extractByline($: cheerio.CheerioAPI): string {
+function extractByline($: CheerioAPI): string {
   const selectors = [
     '.author', '.byline', '[rel="author"]', '.post-author',
     '.article-author', '.entry-author',
@@ -213,7 +216,7 @@ const STOP_WORDS = new Set([
   'end', 'per', 'based', 'given', 'upon', 'different', 'every', 'another',
 ]);
 
-export function extractContentKeywords($: cheerio.CheerioAPI, title: string): string[] {
+export function extractContentKeywords($: CheerioAPI, title: string): string[] {
   // Remove non-content elements
   const clone = $.root().clone();
   clone.find('script, style, nav, footer, header, aside, .sidebar, .menu, .nav, .footer, .header, .advertisement, .ad').remove();

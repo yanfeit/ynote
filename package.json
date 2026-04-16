@@ -2,7 +2,7 @@
   "name": "ynote",
   "displayName": "YNote - Reading Record",
   "description": "A private reading record system for recording daily reading material with abstracts and metadata.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "yanfeit",
   "extensionKind": [
     "workspace"
@@ -87,6 +87,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "ynote.openSettings",
+        "title": "YNote: Settings",
+        "icon": "$(gear)"
+      },
+      {
         "command": "ynote.cutReading",
         "title": "YNote: Cut Reading"
       },
@@ -151,6 +156,12 @@
           "name": "Notes",
           "icon": "$(note)",
           "contextualTitle": "YNote Notes"
+        },
+        {
+          "id": "ynoteActions",
+          "name": "Manage",
+          "icon": "$(gear)",
+          "contextualTitle": "YNote Manage"
         }
       ]
     },
@@ -162,24 +173,14 @@
           "group": "navigation@1"
         },
         {
-          "command": "ynote.syncToGithub",
+          "command": "ynote.refreshReadings",
           "when": "view == ynoteReadings",
           "group": "navigation@2"
         },
         {
-          "command": "ynote.pullFromGithub",
-          "when": "view == ynoteReadings",
-          "group": "navigation@3"
-        },
-        {
-          "command": "ynote.refreshReadings",
-          "when": "view == ynoteReadings",
-          "group": "navigation@4"
-        },
-        {
           "command": "ynote.showDashboard",
           "when": "view == ynoteReadings",
-          "group": "navigation@5"
+          "group": "navigation@3"
         },
         {
           "command": "ynote.createNote",
@@ -187,19 +188,9 @@
           "group": "navigation@1"
         },
         {
-          "command": "ynote.syncToGithub",
-          "when": "view == ynoteNotes",
-          "group": "navigation@2"
-        },
-        {
-          "command": "ynote.pullFromGithub",
-          "when": "view == ynoteNotes",
-          "group": "navigation@3"
-        },
-        {
           "command": "ynote.refreshNotes",
           "when": "view == ynoteNotes",
-          "group": "navigation@4"
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [

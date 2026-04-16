@@ -4,6 +4,7 @@ import { NoteDb } from './database/noteDb';
 import { GitSync } from './services/gitSync';
 import { ReadingsTreeProvider, ReadingItem } from './providers/readingsTreeProvider';
 import { NotesTreeProvider, NoteItem } from './providers/notesTreeProvider';
+import { ActionsTreeProvider } from './providers/actionsTreeProvider';
 import { DashboardPanel } from './webview/DashboardPanel';
 import { registerAddReadingCommand } from './commands/addReading';
 import { registerSyncCommand, registerPullCommand } from './commands/syncToGithub';
@@ -16,6 +17,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const gitSync = new GitSync(context);
   const treeProvider = new ReadingsTreeProvider(db);
   const notesTreeProvider = new NotesTreeProvider(noteDb);
+  const actionsTreeProvider = new ActionsTreeProvider();
 
   const onChanged = () => {
     treeProvider.refresh();
@@ -37,6 +39,11 @@ export function activate(context: vscode.ExtensionContext): void {
     showCollapseAll: true,
   });
   context.subscriptions.push(notesTreeView);
+
+  const actionsTreeView = vscode.window.createTreeView('ynoteActions', {
+    treeDataProvider: actionsTreeProvider,
+  });
+  context.subscriptions.push(actionsTreeView);
 
   // Register commands
   context.subscriptions.push(
@@ -76,6 +83,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('ynote.refreshReadings', () => {
       onChanged();
+    }),
+
+    vscode.commands.registerCommand('ynote.openSettings', () => {
+      vscode.commands.executeCommand('workbench.action.openSettings', '@ext:yanfeit.ynote');
     }),
 
     vscode.commands.registerCommand('ynote.editTags', async (item: ReadingItem) => {

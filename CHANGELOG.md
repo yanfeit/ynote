@@ -5,6 +5,22 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-04-16
+
+### Added
+- **Manage section** in sidebar: New "Manage" view with Settings, Push to GitHub, and Pull from GitHub action items
+- **Double-click to open**: Reading items open URL in browser; Note items open Markdown file in editor
+- **Settings command** (`ynote.openSettings`): Opens VS Code settings filtered to YNote configuration
+
+### Changed
+- **Sync buttons consolidated**: Push/Pull buttons removed from "My Reading Diary" and "Notes" title bars, now in dedicated "Manage" section
+- **NoteItem collapsible state**: Notes without tags show as flat items (no expand arrow); notes with tags remain expandable
+
+### Performance
+- **Lazy-load axios and cheerio**: Heavy dependencies only loaded when adding a reading from URL, not on extension activation — significantly faster sidebar load
+- **One-time migration**: UUID-to-title filename migration only runs once per session instead of on every `getAll()` call
+- **Parallel file reads**: Note files parsed concurrently via `Promise.all()` instead of sequentially
+
 ## [0.2.1] - 2026-04-16
 
 ### Added

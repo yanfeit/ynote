@@ -83,6 +83,11 @@ export class ReadingItem extends vscode.TreeItem {
     this.tooltip = `${reading.title}\n${reading.author ? 'By ' + reading.author : ''}\n${reading.abstract}`;
     this.contextValue = 'reading';
     this.iconPath = new vscode.ThemeIcon('bookmark');
+    this.command = {
+      command: 'ynote.openReading',
+      title: 'Open in Browser',
+      arguments: [this],
+    };
   }
 }
 
