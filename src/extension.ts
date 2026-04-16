@@ -77,9 +77,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
 
-    vscode.commands.registerCommand('ynote.showReadingInDashboard', (item: ReadingItem) => {
-      if (item?.reading) {
-        DashboardPanel.createOrShow(db, item.reading.id);
+    vscode.commands.registerCommand('ynote.showReadingInDashboard', (readingId: string) => {
+      if (readingId) {
+        DashboardPanel.createOrShow(db, readingId);
       }
     }),
 

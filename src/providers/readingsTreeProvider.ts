@@ -88,7 +88,7 @@ export class ReadingItem extends vscode.TreeItem {
     this.command = {
       command: 'ynote.showReadingInDashboard',
       title: 'Show in Dashboard',
-      arguments: [this],
+      arguments: [reading.id],
     };
   }
 }
