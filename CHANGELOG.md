@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Manage section** in sidebar: New "Manage" view with Settings, Push to GitHub, and Pull from GitHub action items
 - **Double-click to open**: Reading items open URL in browser; Note items open Markdown file in editor
 - **Settings command** (`ynote.openSettings`): Opens VS Code settings filtered to YNote configuration
+- **Auto-expand current month**: The current month's YYYY-MM group in both "My Reading Diary" and "Notes" sidebar trees is expanded by default; other months remain collapsed
+- **Click reading → Dashboard**: Clicking a reading item in the sidebar opens the Dashboard webview and scrolls to center on the selected entry (with brief highlight animation); "Open in Browser" remains available via right-click context menu
 
 ### Changed
 - **Sync buttons consolidated**: Push/Pull buttons removed from "My Reading Diary" and "Notes" title bars, now in dedicated "Manage" section
 - **NoteItem collapsible state**: Notes without tags show as flat items (no expand arrow); notes with tags remain expandable
+- **Reading sidebar click behavior**: Single-click now opens Dashboard (previously opened URL in browser); browser open moved to context menu only
 
 ### Performance
 - **Lazy-load axios and cheerio**: Heavy dependencies only loaded when adding a reading from URL, not on extension activation — significantly faster sidebar load

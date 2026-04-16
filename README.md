@@ -10,11 +10,27 @@ YNote is built as a VS Code extension. Just Paste a URL, auto-extract metadata (
 
 ## Features
 
-- **Add Reading**: Paste a URL (`Ctrl+Shift+Y`) — auto-extracts title, author, organization, and abstract
-- **Sidebar Tree View**: Browse readings sorted newest-first, expand for details
-- **Webview Dashboard**: Card-based view with search and filter
-- **GitHub Sync**: Manually sync your readings to a private GitHub repo for cross-device access
-- **Cross-Platform**: Works on Linux (native and WSL) and Windows
+### Reading Management
+- **Add Reading from URL** (`Ctrl+Shift+Y`): Paste a URL — auto-extracts title, author, organization, and abstract via Open Graph, JSON-LD, and meta tags
+- **Sidebar Tree View**: Readings grouped by year-month (current month auto-expanded), with expandable details (author, org, abstract, source, tags, URL)
+- **Webview Dashboard**: Card-based layout with real-time search/filter across title, author, tags, abstract, and comments; year-month sections with collapse/expand
+- **Click to Dashboard**: Click a reading in the sidebar to open the Dashboard and scroll to that entry
+- **Rich-text Comments**: Click any Dashboard card to expand an inline editor with formatting toolbar (Bold, Italic, Strikethrough, Lists)
+- **Tag System**: Intelligent tag recommendations from existing tags and content keyword extraction; QuickPick selection with custom comma-separated input
+
+### Note-Taking
+- **Create Notes**: Create Markdown notes with YAML front matter — title, tags, auto-timestamps
+- **VS Code Native Editing**: Notes open in VS Code's built-in editor with full Markdown support
+- **Notes Sidebar**: Year-month grouping (current month auto-expanded), expandable tag details
+- **Auto-update Timestamp**: Saving a note file automatically updates its `updatedAt` front matter
+
+### Organization & Management
+- **Context Menus**: Right-click any reading or note for Cut, Copy, Rename, Permanent Delete, and Download
+- **Manage Section**: Dedicated sidebar view with Settings, Push to GitHub, and Pull from GitHub actions
+- **GitHub Sync**: Push and pull readings + notes to a private GitHub repo via git CLI; diff-based merge with `updatedAt` timestamps
+
+### Cross-Platform
+- Works on Linux (native and WSL), Remote SSH, and Windows
 
 ## Installation
 
@@ -55,26 +71,48 @@ YNote works in Remote SSH and WSL environments. When connected to a remote machi
 2. Paste a URL (blog post, article, news)
 3. The extension fetches metadata and saves the reading
 4. Browse in the **YNote** sidebar or open the **Dashboard** via command palette
+5. Create notes via the **Notes** sidebar (`+` button) and edit in VS Code's native editor
+6. Sync everything to GitHub via the **Manage** section in the sidebar
 
 ### Commands
 
 | Command | Keybinding | Description |
 |---------|------------|-------------|
 | YNote: Add Reading from URL | `Ctrl+Shift+Y` | Paste URL, extract metadata, save |
-| YNote: Remove Reading | — | Remove selected reading (sidebar context menu) |
-| YNote: Open in Browser | — | Open URL in browser (sidebar context menu) |
 | YNote: Show Dashboard | — | Open webview dashboard with search |
-| YNote: Sync to GitHub | — | Commit and push to GitHub |
-| YNote: Refresh Readings | — | Refresh sidebar tree view |
+| YNote: Open in Browser | — | Open reading URL in browser (context menu) |
+| YNote: Create Note | — | Create a new Markdown note |
+| YNote: Open Note | — | Open note in VS Code editor |
+| YNote: Edit Tags | — | Edit tags on a reading |
+| YNote: Edit Note Tags | — | Edit tags on a note |
+| YNote: Push to GitHub | — | Push readings + notes to GitHub |
+| YNote: Pull from GitHub | — | Pull readings + notes from GitHub |
+| YNote: Refresh Readings | — | Refresh readings sidebar |
+| YNote: Refresh Notes | — | Refresh notes sidebar |
+| YNote: Settings | — | Open YNote configuration |
+| YNote: Cut/Copy/Rename/Delete/Download | — | Context menu actions for readings and notes |
 
 ## GitHub Sync Setup
 
 1. Create a private GitHub repository (e.g., `ynote-data`)
 2. Open VS Code Settings → search "ynote"
 3. Set `ynote.githubRepoUrl` to your repo URL (e.g., `git@github.com:yourusername/ynote-data.git`)
-4. Run **YNote: Sync to GitHub** to push/pull readings
+4. Run **YNote: Push to GitHub** from the Manage section to sync
 
 Requires git installed and authenticated (SSH key or credential helper).
+
+The sync repo structure:
+```
+ynote-data/
+├── readings/
+│   ├── {id1}.json
+│   ├── {id2}.json
+│   └── ...
+└── notes/
+    ├── {title1}.md
+    ├── {title2}.md
+    └── ...
+```
 
 ## Configuration
 
@@ -87,10 +125,17 @@ Requires git installed and authenticated (SSH key or credential helper).
 
 ## Data Storage
 
-Your readings are stored locally in a JSON file at VS Code's global storage path:
+Your data is stored locally in VS Code's global storage path:
+
+**Readings**: `readings.json` (JSON database, sorted newest-first)
 - **Linux / WSL**: `~/.config/Code/User/globalStorage/yanfeit.ynote/readings.json`
 - **Remote SSH**: `~/.vscode-server/data/User/globalStorage/yanfeit.ynote/readings.json`
 - **Windows**: `%APPDATA%\Code\User\globalStorage\yanfeit.ynote\readings.json`
+
+**Notes**: Individual Markdown files with YAML front matter in `notes/` subdirectory
+- **Linux / WSL**: `~/.config/Code/User/globalStorage/yanfeit.ynote/notes/{title}.md`
+- **Remote SSH**: `~/.vscode-server/data/User/globalStorage/yanfeit.ynote/notes/{title}.md`
+- **Windows**: `%APPDATA%\Code\User\globalStorage\yanfeit.ynote\notes\{title}.md`
 
 ## Development
 
@@ -98,7 +143,7 @@ Your readings are stored locally in a JSON file at VS Code's global storage path
 npm run compile   # Build
 npm run watch     # Watch mode
 npm run lint      # Type-check
-npm test          # Run unit tests
+npm test          # Run unit tests (97 tests)
 ```
 
 Press `F5` in VS Code to launch the Extension Development Host for live testing.

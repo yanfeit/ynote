@@ -9,12 +9,15 @@ export class DashboardPanel {
 
   private readonly panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
+  private pendingScrollToId?: string;
 
   private constructor(
     panel: vscode.WebviewPanel,
-    private db: JsonDb
+    private db: JsonDb,
+    scrollToId?: string
   ) {
     this.panel = panel;
+    this.pendingScrollToId = scrollToId;
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage(
       async (msg) => {
@@ -54,13 +57,14 @@ export class DashboardPanel {
     this.update();
   }
 
-  static createOrShow(db: JsonDb): DashboardPanel {
+  static createOrShow(db: JsonDb, scrollToId?: string): DashboardPanel {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
     if (DashboardPanel.currentPanel) {
       DashboardPanel.currentPanel.panel.reveal(column);
+      DashboardPanel.currentPanel.pendingScrollToId = scrollToId;
       DashboardPanel.currentPanel.update();
       return DashboardPanel.currentPanel;
     }
@@ -72,13 +76,15 @@ export class DashboardPanel {
       { enableScripts: true, retainContextWhenHidden: true }
     );
 
-    DashboardPanel.currentPanel = new DashboardPanel(panel, db);
+    DashboardPanel.currentPanel = new DashboardPanel(panel, db, scrollToId);
     return DashboardPanel.currentPanel;
   }
 
   async update(): Promise<void> {
+    const scrollToId = this.pendingScrollToId;
+    this.pendingScrollToId = undefined;
     const readings = await this.db.getAll();
-    this.panel.webview.html = this.getHtml(readings);
+    this.panel.webview.html = this.getHtml(readings, scrollToId);
   }
 
   private dispose(): void {
@@ -87,7 +93,7 @@ export class DashboardPanel {
     this.disposables = [];
   }
 
-  private getHtml(readings: Reading[]): string {
+  private getHtml(readings: Reading[], scrollToId?: string): string {
     // Group readings by year-month
     const groups = new Map<string, Reading[]>();
     for (const r of readings) {
@@ -625,6 +631,26 @@ export class DashboardPanel {
           toggle.textContent = '▼';
         }
       });
+    }
+    const __scrollTargetId = ${scrollToId ? JSON.stringify(scrollToId) : 'null'};
+    if (__scrollTargetId) {
+      const targetCard = document.querySelector('[data-id="' + __scrollTargetId + '"]');
+      if (targetCard) {
+        const section = targetCard.closest('.section');
+        if (section) {
+          const body = section.querySelector('.section-body');
+          const toggle = section.querySelector('.section-toggle');
+          if (body && body.style.display === 'none') {
+            body.style.display = 'block';
+            if (toggle) { toggle.textContent = '▼'; }
+          }
+        }
+        setTimeout(() => {
+          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetCard.style.outline = '2px solid var(--vscode-focusBorder)';
+          setTimeout(() => { targetCard.style.outline = ''; }, 2000);
+        }, 100);
+      }
     }
   </script>
 </body>

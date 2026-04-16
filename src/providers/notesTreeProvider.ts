@@ -62,7 +62,9 @@ class NoteYearMonthGroup extends vscode.TreeItem {
     public readonly yearMonth: string,
     public readonly notes: Note[]
   ) {
-    super(yearMonth, vscode.TreeItemCollapsibleState.Collapsed);
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    super(yearMonth, yearMonth === currentYM ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed);
     this.description = `${notes.length} note${notes.length !== 1 ? 's' : ''}`;
     this.tooltip = `Notes created in ${yearMonth}`;
     this.contextValue = 'noteYearMonthGroup';

@@ -67,7 +67,9 @@ class YearMonthGroup extends vscode.TreeItem {
     public readonly yearMonth: string,
     public readonly readings: Reading[]
   ) {
-    super(yearMonth, vscode.TreeItemCollapsibleState.Collapsed);
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    super(yearMonth, yearMonth === currentYM ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed);
     this.description = `${readings.length} reading${readings.length !== 1 ? 's' : ''}`;
     this.tooltip = `Readings added in ${yearMonth}`;
     this.contextValue = 'yearMonthGroup';
@@ -84,8 +86,8 @@ export class ReadingItem extends vscode.TreeItem {
     this.contextValue = 'reading';
     this.iconPath = new vscode.ThemeIcon('bookmark');
     this.command = {
-      command: 'ynote.openReading',
-      title: 'Open in Browser',
+      command: 'ynote.showReadingInDashboard',
+      title: 'Show in Dashboard',
       arguments: [this],
     };
   }
