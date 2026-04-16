@@ -45,12 +45,6 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TreeElement> {
     if (element instanceof NoteItem) {
       const n = element.note;
       const details: NoteDetail[] = [];
-      const created = new Date(n.createdAt).toLocaleString();
-      const updated = new Date(n.updatedAt).toLocaleString();
-      details.push(new NoteDetail('Created', created));
-      if (n.updatedAt !== n.createdAt) {
-        details.push(new NoteDetail('Updated', updated));
-      }
       if (n.tags.length > 0) { details.push(new NoteDetail('Tags', n.tags.join(', '))); }
       return details;
     }

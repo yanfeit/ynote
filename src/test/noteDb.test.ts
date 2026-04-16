@@ -36,10 +36,9 @@ describe('NoteDb', () => {
     it('returns notes sorted by updatedAt descending', async () => {
       const n1 = await noteDb.add('Older Note');
       // Force updatedAt to an old date by rewriting the file
-      const p1 = noteDb.getNotePath(n1.id);
-      let content1 = fs.readFileSync(p1, 'utf-8');
+      let content1 = fs.readFileSync(n1.filePath, 'utf-8');
       content1 = content1.replace(/updatedAt: .+/, 'updatedAt: 2024-01-01T00:00:00.000Z');
-      fs.writeFileSync(p1, content1, 'utf-8');
+      fs.writeFileSync(n1.filePath, content1, 'utf-8');
 
       await noteDb.add('Newer Note');
 
@@ -63,10 +62,9 @@ describe('NoteDb', () => {
 
     it('writes a valid .md file to disk', async () => {
       const note = await noteDb.add('Disk Check');
-      const filePath = noteDb.getNotePath(note.id);
-      assert.ok(fs.existsSync(filePath));
+      assert.ok(fs.existsSync(note.filePath));
 
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = fs.readFileSync(note.filePath, 'utf-8');
       assert.ok(content.startsWith('---\n'));
       assert.ok(content.includes('title: Disk Check'));
       assert.ok(content.includes(`id: ${note.id}`));
@@ -75,7 +73,7 @@ describe('NoteDb', () => {
 
     it('writes tags as YAML array', async () => {
       const note = await noteDb.add('Tagged Note', ['tag1', 'tag2']);
-      const content = fs.readFileSync(noteDb.getNotePath(note.id), 'utf-8');
+      const content = fs.readFileSync(note.filePath, 'utf-8');
       assert.ok(content.includes('  - tag1'));
       assert.ok(content.includes('  - tag2'));
     });
@@ -102,7 +100,7 @@ describe('NoteDb', () => {
       await noteDb.remove(note.id);
       const all = await noteDb.getAll();
       assert.strictEqual(all.length, 0);
-      assert.ok(!fs.existsSync(noteDb.getNotePath(note.id)));
+      assert.ok(!fs.existsSync(note.filePath));
     });
 
     it('throws when note not found', async () => {
@@ -144,14 +142,16 @@ describe('NoteDb', () => {
     it('preserves body content', async () => {
       const note = await noteDb.add('Body Preserve');
       // Write custom body
-      const filePath = noteDb.getNotePath(note.id);
-      let content = fs.readFileSync(filePath, 'utf-8');
+      let content = fs.readFileSync(note.filePath, 'utf-8');
       content = content.replace('# Body Preserve\n\n', '# Body Preserve\n\nSome important content here.\n');
-      fs.writeFileSync(filePath, content, 'utf-8');
+      fs.writeFileSync(note.filePath, content, 'utf-8');
 
       await noteDb.updateMetadata(note.id, { title: 'Body Preserve Updated' });
 
-      const rawContent = fs.readFileSync(filePath, 'utf-8');
+      // After rename, find the file by ID
+      const updated = await noteDb.findById(note.id);
+      assert.ok(updated);
+      const rawContent = fs.readFileSync(updated!.filePath, 'utf-8');
       assert.ok(rawContent.includes('Some important content here.'));
       assert.ok(rawContent.includes('title: Body Preserve Updated'));
     });
@@ -211,36 +211,40 @@ describe('NoteDb', () => {
 
   describe('front matter parsing robustness', () => {
     it('handles file without front matter gracefully', async () => {
-      const note = await noteDb.add('Corrupt Test');
-      const filePath = noteDb.getNotePath(note.id);
+      // Write a file with no front matter directly to the notes directory
+      const notesDir = noteDb.getNotesDir();
+      fs.mkdirSync(notesDir, { recursive: true });
+      const filePath = path.join(notesDir, 'corrupt.md');
       fs.writeFileSync(filePath, '# No front matter\n\nJust content.', 'utf-8');
 
-      const found = await noteDb.findById(note.id);
-      assert.strictEqual(found, undefined);
+      const all = await noteDb.getAll();
+      // Should skip the corrupt file
+      assert.strictEqual(all.length, 0);
     });
 
     it('handles file with missing required fields', async () => {
-      const note = await noteDb.add('Missing Fields');
-      const filePath = noteDb.getNotePath(note.id);
+      // Write a file with incomplete front matter
+      const notesDir = noteDb.getNotesDir();
+      fs.mkdirSync(notesDir, { recursive: true });
+      const filePath = path.join(notesDir, 'missing-fields.md');
       fs.writeFileSync(filePath, '---\nid: some-id\n---\nContent', 'utf-8');
 
-      const found = await noteDb.findById(note.id);
-      // title is required, so this should return undefined
-      assert.strictEqual(found, undefined);
+      const all = await noteDb.getAll();
+      // title is required, so this should be skipped
+      assert.strictEqual(all.length, 0);
     });
 
     it('normalizes invalid timestamps to epoch', async () => {
       const note = await noteDb.add('Bad Dates');
-      const filePath = noteDb.getNotePath(note.id);
-      let content = fs.readFileSync(filePath, 'utf-8');
+      let content = fs.readFileSync(note.filePath, 'utf-8');
       content = content.replace(/createdAt: .+/, 'createdAt: bad-date');
       content = content.replace(/updatedAt: .+/, 'updatedAt: also-bad');
-      fs.writeFileSync(filePath, content, 'utf-8');
+      fs.writeFileSync(note.filePath, content, 'utf-8');
 
-      const found = await noteDb.findById(note.id);
-      assert.ok(found);
-      assert.strictEqual(found!.createdAt, '1970-01-01T00:00:00.000Z');
-      assert.strictEqual(found!.updatedAt, '1970-01-01T00:00:00.000Z');
+      const all = await noteDb.getAll();
+      assert.strictEqual(all.length, 1);
+      assert.strictEqual(all[0].createdAt, '1970-01-01T00:00:00.000Z');
+      assert.strictEqual(all[0].updatedAt, '1970-01-01T00:00:00.000Z');
     });
 
     it('skips non-.md files in notes directory', async () => {

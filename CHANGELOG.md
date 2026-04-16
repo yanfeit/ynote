@@ -5,6 +5,29 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-04-16
+
+### Added
+- **Right-click context menu** for readings and notes with Cut, Copy, Rename, Permanent Delete, and Download actions
+  - Reading: Copy copies URL to clipboard; Download exports as Markdown
+  - Note: Copy copies full Markdown content; Download saves `.md` file to chosen location
+  - Cut copies content/URL then deletes with confirmation dialog
+  - Rename updates title via input box (notes also rename the underlying file)
+- **Sync buttons in sidebar title bars**: Push (⬆) and Pull (⬇) icons added to both "My Reading Diary" and "Notes" view headers
+
+### Changed
+- **Notes sidebar**: Removed Created and Updated detail fields from expanded note items (metadata still stored in front matter)
+- **Note filenames**: Notes now stored as `{sanitized-title}.md` instead of `{uuid}.md` for human-readable editor tab titles
+  - Existing UUID-named files are automatically migrated on load
+  - Title collisions handled with `(2)`, `(3)` suffixes
+  - Renaming a note also renames the underlying file
+- **Dashboard**: Removed Push/Pull buttons (sync now accessible from sidebar title bars)
+- **Context menu reorganization**: Reading/Note inline action icons replaced with organized right-click menu groups (Open, Clipboard, Edit, Manage)
+
+### Internal
+- New `src/commands/contextMenu.ts` module for all context menu handlers
+- `NoteDb` refactored: `findFileById()` scans by front matter ID, `getIdFromFile()` for file watcher, `sanitizeTitle()` for filename generation, `migrateUuidFilenames()` for backward compatibility
+
 ## [0.2.0] - 2026-04-16
 
 ### Added

@@ -8,6 +8,27 @@ const NOTES_DIR = 'notes';
 
 const EPOCH_ISO = new Date(0).toISOString();
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Sanitize a title for use as a filename.
+ * Replaces disallowed characters, collapses dashes, truncates to 100 chars.
+ */
+function sanitizeTitle(title: string): string {
+  let name = title
+    .replace(/[/\\:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (name.length > 100) {
+    name = name.slice(0, 100).replace(/-+$/, '');
+  }
+
+  return name || 'untitled';
+}
+
 function isValidTimestamp(value: string): boolean {
   return Number.isFinite(Date.parse(value));
 }
@@ -153,9 +174,11 @@ export class NoteDb {
 
   /**
    * Get all notes sorted by updatedAt descending (newest first).
+   * Also migrates any legacy UUID-named files to title-based filenames.
    */
   async getAll(): Promise<Note[]> {
     await this.ensureNotesDir();
+    await this.migrateUuidFilenames();
     const notes: Note[] = [];
 
     try {
@@ -191,7 +214,7 @@ export class NoteDb {
       await this.ensureNotesDir();
       const id = uuidv4();
       const now = new Date().toISOString();
-      const filePath = path.join(this.notesDir, `${id}.md`);
+      const filePath = await this.resolveUniqueFilePath(title);
 
       const meta = { id, title, createdAt: now, updatedAt: now, tags };
       const body = `\n# ${title}\n\n`;
@@ -204,11 +227,35 @@ export class NoteDb {
   }
 
   /**
+   * Find a unique filename for a note based on its title.
+   * Appends (2), (3), etc. for collision handling.
+   */
+  private async resolveUniqueFilePath(title: string): Promise<string> {
+    const baseName = sanitizeTitle(title);
+    let candidate = path.join(this.notesDir, `${baseName}.md`);
+    let counter = 1;
+    while (true) {
+      try {
+        await fs.promises.access(candidate);
+        // File exists, try next suffix
+        counter++;
+        candidate = path.join(this.notesDir, `${baseName} (${counter}).md`);
+      } catch {
+        // File doesn't exist — use this path
+        return candidate;
+      }
+    }
+  }
+
+  /**
    * Remove a note by deleting its .md file.
    */
   async remove(id: string): Promise<void> {
     await this.withMutationLock(async () => {
-      const filePath = this.getNotePath(id);
+      const filePath = await this.findFileById(id);
+      if (!filePath) {
+        throw new Error(`Note not found: ${id}`);
+      }
       try {
         await fs.promises.unlink(filePath);
       } catch (err: unknown) {
@@ -223,10 +270,15 @@ export class NoteDb {
   /**
    * Update metadata fields in a note's YAML front matter.
    * Always updates `updatedAt` to the current time.
+   * If the title changes, renames the file to match the new title.
    */
   async updateMetadata(id: string, partial: Partial<Pick<Note, 'title' | 'tags'>>): Promise<void> {
     await this.withMutationLock(async () => {
-      const filePath = this.getNotePath(id);
+      const filePath = await this.findFileById(id);
+      if (!filePath) {
+        throw new Error(`Note not found: ${id}`);
+      }
+
       let content: string;
       try {
         content = await fs.promises.readFile(filePath, 'utf-8');
@@ -246,9 +298,10 @@ export class NoteDb {
       const currentTags = Array.isArray(result.meta.tags) ? result.meta.tags.filter(t => typeof t === 'string') : [];
       const currentCreatedAt = typeof result.meta.createdAt === 'string' ? result.meta.createdAt : EPOCH_ISO;
 
+      const newTitle = partial.title ?? currentTitle;
       const meta = {
         id,
-        title: partial.title ?? currentTitle,
+        title: newTitle,
         createdAt: currentCreatedAt,
         updatedAt: new Date().toISOString(),
         tags: partial.tags ?? currentTags,
@@ -256,6 +309,12 @@ export class NoteDb {
 
       const newContent = serializeFrontMatter(meta, result.body);
       await fs.promises.writeFile(filePath, newContent, 'utf-8');
+
+      // Rename file if title changed
+      if (partial.title && partial.title !== currentTitle) {
+        const newFilePath = await this.resolveUniqueFilePath(newTitle);
+        await fs.promises.rename(filePath, newFilePath);
+      }
     });
   }
 
@@ -263,6 +322,12 @@ export class NoteDb {
    * Touch the `updatedAt` field in a note's front matter (called on file save).
    */
   async touchUpdatedAt(id: string): Promise<void> {
+    // touchUpdatedAt needs to find the file by ID since filenames are now title-based
+    const filePath = await this.findFileById(id);
+    if (!filePath) { return; }
+
+    // Read and update in-place without going through withMutationLock
+    // since updateMetadata already uses the lock
     await this.updateMetadata(id, {});
   }
 
@@ -270,7 +335,8 @@ export class NoteDb {
    * Find a note by its ID.
    */
   async findById(id: string): Promise<Note | undefined> {
-    const filePath = this.getNotePath(id);
+    const filePath = await this.findFileById(id);
+    if (!filePath) { return undefined; }
     return this.parseNoteFile(filePath);
   }
 
@@ -292,9 +358,81 @@ export class NoteDb {
 
   /**
    * Get the absolute path for a note's .md file.
+   * @deprecated Use findFileById() for title-based filenames. Kept for legacy UUID-named files.
    */
   getNotePath(id: string): string {
     return path.join(this.notesDir, `${id}.md`);
+  }
+
+  /**
+   * Find a note's file path by scanning all .md files for matching front matter ID.
+   */
+  async findFileById(id: string): Promise<string | undefined> {
+    await this.ensureNotesDir();
+    // First, try the legacy UUID-named file for fast path
+    const legacyPath = path.join(this.notesDir, `${id}.md`);
+    try {
+      await fs.promises.access(legacyPath);
+      const note = await this.parseNoteFile(legacyPath);
+      if (note && note.id === id) {
+        return legacyPath;
+      }
+    } catch {
+      // Not found at legacy path, scan all files
+    }
+
+    try {
+      const files = await fs.promises.readdir(this.notesDir);
+      for (const file of files) {
+        if (!file.endsWith('.md')) { continue; }
+        const filePath = path.join(this.notesDir, file);
+        const note = await this.parseNoteFile(filePath);
+        if (note && note.id === id) {
+          return filePath;
+        }
+      }
+    } catch {
+      // Directory not found
+    }
+    return undefined;
+  }
+
+  /**
+   * Extract the note ID from a .md file by parsing its front matter.
+   * Used by the file watcher to identify which note was saved.
+   */
+  async getIdFromFile(filePath: string): Promise<string | undefined> {
+    const note = await this.parseNoteFile(filePath);
+    return note?.id;
+  }
+
+  /**
+   * Migrate legacy UUID-named files to human-readable title-based filenames.
+   * Called during getAll() to auto-migrate existing notes.
+   */
+  private async migrateUuidFilenames(): Promise<void> {
+    try {
+      const files = await fs.promises.readdir(this.notesDir);
+      for (const file of files) {
+        if (!file.endsWith('.md')) { continue; }
+        const basename = file.slice(0, -3);
+        if (!UUID_PATTERN.test(basename)) { continue; }
+
+        // This file has a UUID filename — migrate it
+        const filePath = path.join(this.notesDir, file);
+        const note = await this.parseNoteFile(filePath);
+        if (!note || !note.title) { continue; }
+
+        const newFilePath = await this.resolveUniqueFilePath(note.title);
+        try {
+          await fs.promises.rename(filePath, newFilePath);
+        } catch {
+          // If rename fails, keep the old filename
+        }
+      }
+    } catch {
+      // Directory not found or other error — skip migration
+    }
   }
 
   /**

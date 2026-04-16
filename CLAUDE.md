@@ -7,61 +7,87 @@ Researchers track the progress of their peers through literature review, and lit
 YNote is a lightweight note-taking plugin for information management built for developers (especially AI practitioners). It focuses on the full lifecycle management of fragmented industry information, providing users with one-stop capabilities for information collection, structured organization, and efficient indexed retrieval.
 
 ## Project Overview
-**YNote** is a VS Code Extension for maintaining a private reading record system. It lets users paste URLs (blog posts, articles, news), auto-extracts metadata (title, author, organization, abstract), stores records in a JSON database, and syncs to a private GitHub repo.
+**YNote** is a VS Code Extension for maintaining a private reading record and note-taking system. It lets users:
+- Paste URLs (blog posts, articles, news) and auto-extract metadata (title, author, organization, abstract)
+- Create free-form Markdown notes with YAML front matter
+- Organize both via tags, search, and year-month grouping
+- Sync everything to a private GitHub repo
 
 ## Framework / Data Flow
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        VS Code Extension Host                    │
-│                                                                  │
-│  ┌──────────────┐     ┌───────────────────┐                      │
-│  │ User Input   │────▶│ addReading.ts      │                     │
-│  │ (Ctrl+Shift+Y│     │ command handler    │                     │
-│  │  or sidebar) │     └────────┬──────────┘                      │
-│  └──────────────┘              │                                 │
-│                                ▼                                 │
-│                   ┌───────────────────────┐                      │
-│                   │ metadataFetcher.ts     │                     │
-│                   │ axios GET → cheerio   │                      │
-│                   │ parse <meta>, JSON-LD │                      │
-│                   └────────┬──────────────┘                      │
-│                            │ Partial<Reading>                    │
-│                            ▼                                     │
-│                   ┌───────────────────────┐                      │
-│                   │ jsonDb.ts             │                      │
-│                   │ CRUD → readings.json  │                      │
-│                   │ (globalStorageUri)    │                      │
-│                   └────────┬──────────────┘                      │
-│                            │                                     │
-│              ┌─────────────┼─────────────┐                       │
-│              ▼             ▼             ▼                        │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │
-│  │ Tree View    │ │ Dashboard    │ │ gitSync.ts   │             │
-│  │ (sidebar)    │ │ (webview)    │ │ git CLI      │             │
-│  │ newest-first │ │ cards+search │ │ push/pull    │             │
-│  └──────────────┘ └──────────────┘ └──────┬───────┘             │
-│                                           │                      │
-└───────────────────────────────────────────┼──────────────────────┘
-                                            ▼
-                                   ┌─────────────────┐
-                                   │ Private GitHub   │
-                                   │ Repo (remote)    │
-                                   └─────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        VS Code Extension Host                        │
+│                                                                      │
+│  ┌──────────────┐     ┌───────────────────┐                          │
+│  │ User Input   │────▶│ addReading.ts      │                         │
+│  │ (Ctrl+Shift+Y│     │ command handler    │                         │
+│  │  or sidebar) │     └────────┬──────────┘                          │
+│  └──────────────┘              │                                     │
+│                                ▼                                     │
+│                   ┌───────────────────────┐                          │
+│  ┌──────────┐    │ metadataFetcher.ts     │                          │
+│  │ Create   │    │ axios GET → cheerio    │                          │
+│  │ Note     │    │ parse <meta>, JSON-LD  │                          │
+│  │ command  │    └────────┬──────────────┘                           │
+│  └────┬─────┘            │ Partial<Reading>                          │
+│       │                  ▼                                           │
+│       │     ┌───────────────────────┐                                │
+│       │     │ jsonDb.ts             │                                │
+│       │     │ CRUD → readings.json  │                                │
+│       │     │ (globalStorageUri)    │                                │
+│       │     └────────┬──────────────┘                                │
+│       │              │                                               │
+│       ▼              │                                               │
+│  ┌───────────────┐   │                                               │
+│  │ noteDb.ts     │   │                                               │
+│  │ CRUD → .md    │   │                                               │
+│  │ (YAML front   │   │                                               │
+│  │  matter)      │   │                                               │
+│  └────┬──────────┘   │                                               │
+│       │              │                                               │
+│       ▼              ▼                                               │
+│  ┌──────────────────────────────────────────────────┐                │
+│  │              Context Menu Commands               │                │
+│  │    cut / copy / rename / delete / download       │                │
+│  │    (contextMenu.ts — shared for both types)      │                │
+│  └──────────────────┬───────────────────────────────┘                │
+│                     │                                                │
+│       ┌─────────────┼──────────────┬───────────────┐                 │
+│       ▼             ▼              ▼               ▼                 │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐            │
+│  │ Readings │ │ Notes    │ │ Dashboard    │ │ gitSync  │            │
+│  │ TreeView │ │ TreeView │ │ (webview)    │ │ .ts      │            │
+│  │ (sidebar)│ │ (sidebar)│ │ cards+search │ │ push/pull│            │
+│  └──────────┘ └──────────┘ └──────────────┘ └────┬─────┘            │
+│       ↑             ↑                             │                  │
+│       └─── Push/Pull buttons in both ────────────┘                   │
+│            sidebar title bars                                        │
+└──────────────────────────────────────────┬───────────────────────────┘
+                                           ▼
+                                  ┌─────────────────┐
+                                  │ Private GitHub   │
+                                  │ Repo (remote)    │
+                                  │ readings/*.json  │
+                                  │ notes/*.md       │
+                                  └─────────────────┘
 ```
 
 ### Component Responsibilities
 | Component | File | Role |
 |-----------|------|------|
-| **Entry point** | `extension.ts` | Registers commands, tree view, wires dependencies |
-| **Data model** | `models/reading.ts` | `Reading` interface (id, url, title, author, org, abstract, dates, tags, source, comment as HTML) |
-| **Database** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL |
-| **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio |
-| **Sync** | `services/gitSync.ts` | Clone, pull, merge, commit, push via git CLI |
-| **Add command** | `commands/addReading.ts` | URL input → fetch → confirm → save → refresh UI |
-| **Sync commands** | `commands/syncToGithub.ts` | Push/pull with progress + error UI (buttons in Dashboard) |
-| **Tree view** | `providers/readingsTreeProvider.ts` | Sidebar list with expandable details |
-| **Dashboard** | `webview/DashboardPanel.ts` | HTML card layout with inline search |
+| **Entry point** | `extension.ts` | Registers 23 commands, 2 tree views, file watcher, wires dependencies |
+| **Data models** | `models/reading.ts`, `models/note.ts` | `Reading` interface (11 fields) and `Note` interface (6 fields) |
+| **Readings DB** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL, mutation lock, atomic writes |
+| **Notes DB** | `database/noteDb.ts` | Markdown files with YAML front matter, title-based filenames, auto-migration from UUID names |
+| **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio (OG, JSON-LD, meta, paragraph fallback); content keyword extraction |
+| **Sync** | `services/gitSync.ts` | Clone/pull/push via git CLI; per-entry JSON files for readings, raw `.md` for notes; diff-based sync |
+| **Add command** | `commands/addReading.ts` | URL input → fetch → confirm → tag → save → refresh UI |
+| **Sync commands** | `commands/syncToGithub.ts` | Push/pull with progress notification + error UI |
+| **Context menus** | `commands/contextMenu.ts` | Cut, Copy, Rename, Permanent Delete, Download — for both readings and notes |
+| **Readings tree** | `providers/readingsTreeProvider.ts` | Year-month groups → reading items → detail rows (author, org, abstract, source, tags, URL) |
+| **Notes tree** | `providers/notesTreeProvider.ts` | Year-month groups → note items → tag details |
+| **Dashboard** | `webview/DashboardPanel.ts` | HTML card layout with inline search, rich-text comment editor, year-month sections |
 
 ## Architecture
 
@@ -70,40 +96,57 @@ YNote is a lightweight note-taking plugin for information management built for d
 - Cross-platform: Linux (primary), Windows (supported)
 
 ### Data Storage
-- **Format**: JSON file (`readings.json`) — chosen for git-friendly diffs and human readability
-- **Location**: `context.globalStorageUri` (VS Code managed, persists across sessions)
-- **Sync**: Manual git push/pull to a private GitHub repo configured in settings
+- **Readings**: JSON file (`readings.json`) in `context.globalStorageUri` — git-friendly diffs, human-readable
+- **Notes**: Individual Markdown files (`{sanitized-title}.md`) in `globalStorageUri/notes/` — YAML front matter for metadata, body for content
+- **Sync**: Manual git push/pull to a private GitHub repo; readings as individual `readings/{id}.json` files, notes as `notes/{title}.md` files
 
 ### Key Dependencies
 - `axios` — HTTP requests for fetching web pages
-- `cheerio` — Lightweight HTML parsing for metadata extraction
+- `cheerio` — Lightweight HTML parsing for metadata extraction and comment sanitization
 - `uuid` — Unique record ID generation
 
 ### Source Structure
 ```
 src/
-├── extension.ts              # Entry point: activate/deactivate
+├── extension.ts                 # Entry point: activate/deactivate, 23 command registrations
 ├── models/
-│   └── reading.ts            # Reading interface definition
+│   ├── reading.ts               # Reading interface (id, url, title, author, org, abstract, dates, tags, source, comment)
+│   └── note.ts                  # Note interface (id, title, createdAt, updatedAt, tags, filePath)
 ├── database/
-│   └── jsonDb.ts             # JSON file CRUD operations
+│   ├── jsonDb.ts                # Readings JSON CRUD (mutation lock, atomic writes)
+│   └── noteDb.ts                # Notes Markdown CRUD (YAML front matter, title-based filenames, migration)
 ├── services/
-│   ├── metadataFetcher.ts    # URL → metadata extraction (axios + cheerio)
-│   └── gitSync.ts            # Git CLI wrapper for GitHub sync
+│   ├── metadataFetcher.ts       # URL → metadata extraction + content keyword suggestion
+│   └── gitSync.ts               # Git CLI wrapper: diff-based push, pull, per-entry files, notes sync
 ├── commands/
-│   ├── addReading.ts         # Add reading from URL
-│   └── syncToGithub.ts       # Push & pull sync commands
+│   ├── addReading.ts            # Add reading from URL (fetch, confirm, tag, save)
+│   ├── syncToGithub.ts          # Push & pull sync commands with progress UI
+│   └── contextMenu.ts           # Cut/Copy/Rename/Delete/Download for readings and notes
 ├── providers/
-│   └── readingsTreeProvider.ts  # Sidebar tree view data provider
-└── webview/
-    └── DashboardPanel.ts     # Webview panel lifecycle (HTML/CSS inline)
+│   ├── readingsTreeProvider.ts  # Sidebar tree: year-month → reading → details
+│   └── notesTreeProvider.ts     # Sidebar tree: year-month → note → tags
+├── webview/
+│   └── DashboardPanel.ts        # Webview: card layout, search, rich-text comment editor
+└── test/
+    ├── jsonDb.test.ts           # 19 tests: CRUD, concurrency, robustness
+    ├── noteDb.test.ts           # 19 tests: CRUD, front matter, migration
+    ├── metadataFetcher.test.ts  # 21 tests: OG, JSON-LD, keywords
+    ├── gitSync.test.ts          # 38 tests: diff, migration, notes sync
+    ├── mock/vscode.ts           # VS Code API mock for unit tests
+    └── integration/
+        └── extension.test.ts    # Manual integration test checklist
 ```
+
+### Codebase Size
+- **Production**: ~3,400 lines TypeScript (15 source files)
+- **Tests**: ~1,200 lines (97 automated tests + manual integration checklist)
 
 ## Build & Development Commands
 ```bash
 npm run compile      # Compile TypeScript → out/
 npm run watch        # Watch mode compilation
 npm run lint         # Type-check without emit
+npm test             # Compile + run mocha tests
 ```
 
 ### Running the Extension
@@ -123,13 +166,19 @@ npx @vscode/vsce package   # Produces .vsix file
 - **Error handling**: Always catch and show user-friendly messages via `vscode.window.showErrorMessage()`
 - **Async**: Use async/await, never raw callbacks
 - **Imports**: Use named imports, group by: vscode → node builtins → external deps → local modules
+- **Concurrency**: `withMutationLock()` queue in both JsonDb and NoteDb to serialize writes
+- **File safety**: Atomic writes via temp file + rename in JsonDb; YAML front matter in NoteDb
 
 ## Design Decisions
 1. **JSON over SQLite** — git-friendly diffs, human-readable, sufficient for personal use (<5K records)
-2. **Manual sync over auto-sync** — user triggers push/pull explicitly from the Dashboard, no surprise syncs
+2. **Manual sync over auto-sync** — user triggers push/pull explicitly from sidebar buttons, no surprise syncs
 3. **Git CLI over GitHub API** — simpler implementation, leverages existing user git auth (SSH/credential helper)
 4. **cheerio over puppeteer** — lightweight (~50KB vs ~300MB), sufficient for `<meta>` tag extraction
 5. **globalStorageUri** — VS Code managed path, safe across OS, survives extension updates
+6. **Per-entry sync files** — each reading is an individual `{id}.json` file in the sync repo, enabling clean diffs and partial updates
+7. **YAML front matter for notes** — standard Markdown convention, custom regex parser (no YAML library dependency)
+8. **Title-based note filenames** — `{sanitized-title}.md` for human-readable editor tab titles; auto-migration from UUID filenames
+9. **Context menus over inline icons** — right-click menus with grouped actions (Open, Clipboard, Edit, Manage) keep the UI clean
 
 ## Configuration Settings
 | Setting | Default | Description |
@@ -146,17 +195,35 @@ npx @vscode/vsce package   # Produces .vsix file
 | `ynote.removeReading` | — | Remove selected reading |
 | `ynote.openReading` | — | Open URL in browser |
 | `ynote.showDashboard` | — | Open webview dashboard |
-| `ynote.syncToGithub` | — | Push readings to GitHub |
-| `ynote.pullFromGithub` | — | Pull readings from GitHub |
-| `ynote.refreshReadings` | — | Refresh tree view |
+| `ynote.syncToGithub` | — | Push readings + notes to GitHub |
+| `ynote.pullFromGithub` | — | Pull readings + notes from GitHub |
+| `ynote.refreshReadings` | — | Refresh readings tree view |
 | `ynote.editTags` | — | Edit tags on a reading |
+| `ynote.createNote` | — | Create a new Markdown note |
+| `ynote.openNote` | — | Open note in editor |
+| `ynote.removeNote` | — | Remove a note |
+| `ynote.editNoteTags` | — | Edit tags on a note |
+| `ynote.refreshNotes` | — | Refresh notes tree view |
+| `ynote.cutReading` | — | Cut reading (copy URL + delete) |
+| `ynote.copyReading` | — | Copy reading URL to clipboard |
+| `ynote.renameReading` | — | Rename reading title |
+| `ynote.deleteReading` | — | Permanently delete reading |
+| `ynote.downloadReading` | — | Download reading as Markdown |
+| `ynote.cutNote` | — | Cut note (copy content + delete) |
+| `ynote.copyNote` | — | Copy note content to clipboard |
+| `ynote.renameNote` | — | Rename note (title + filename) |
+| `ynote.deleteNote` | — | Permanently delete note |
+| `ynote.downloadNote` | — | Download note as `.md` file |
 
 ## Testing
 ```bash
-npm test             # Run unit tests (mocha)
+npm test             # Run 97 unit tests (mocha)
 ```
-- Unit tests: `src/test/jsonDb.test.ts`, `src/test/metadataFetcher.test.ts`
-- Integration: `src/test/integration/extension.test.ts` (runs in Extension Host via F5)
+- **JsonDb tests** (`jsonDb.test.ts`): CRUD, concurrent writes, robustness (corrupted JSON, bad timestamps)
+- **NoteDb tests** (`noteDb.test.ts`): CRUD, front matter parsing, UUID migration, concurrent writes
+- **MetadataFetcher tests** (`metadataFetcher.test.ts`): OG/meta/JSON-LD extraction, keyword extraction
+- **GitSync tests** (`gitSync.test.ts`): Diff computation, migration, notes sync, individual file I/O
+- **Integration** (`extension.test.ts`): Manual checklist for Extension Host (9 scenarios)
 - Tests mock `vscode` module for unit testing outside Extension Host
 
 ## Skills Reference

@@ -42,6 +42,7 @@ export class DashboardPanel {
             vscode.window.showErrorMessage(`Failed to save comment: ${message}`);
           }
         } else if (msg.command === 'pushToGithub') {
+          // Kept for backwards compatibility, sync now available in sidebar
           await vscode.commands.executeCommand('ynote.syncToGithub');
         } else if (msg.command === 'pullFromGithub') {
           await vscode.commands.executeCommand('ynote.pullFromGithub');
@@ -482,10 +483,6 @@ export class DashboardPanel {
   <div class="header">
     <h1>YNote Readings</h1>
     <span class="count">${readings.length} reading${readings.length !== 1 ? 's' : ''}</span>
-    <div class="header-actions">
-      <button class="header-btn" onclick="pullFromGithub()" title="Pull readings from GitHub">⬇ Pull</button>
-      <button class="header-btn" onclick="pushToGithub()" title="Push readings to GitHub">⬆ Push</button>
-    </div>
   </div>
   <input class="search-bar" type="text" placeholder="Search by title, author, tag, or keyword..." oninput="filterCards(this.value)">
   <div class="cards">
@@ -495,12 +492,6 @@ export class DashboardPanel {
     const vscode = acquireVsCodeApi();
     function openUrl(url) {
       vscode.postMessage({ command: 'openUrl', url: url });
-    }
-    function pushToGithub() {
-      vscode.postMessage({ command: 'pushToGithub' });
-    }
-    function pullFromGithub() {
-      vscode.postMessage({ command: 'pullFromGithub' });
     }
     function toggleSection(header) {
       const body = header.nextElementSibling;

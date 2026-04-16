@@ -2,7 +2,7 @@
   "name": "ynote",
   "displayName": "YNote - Reading Record",
   "description": "A private reading record system for recording daily reading material with abstracts and metadata.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "yanfeit",
   "extensionKind": [
     "workspace"
@@ -85,6 +85,48 @@
         "command": "ynote.refreshNotes",
         "title": "YNote: Refresh Notes",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "ynote.cutReading",
+        "title": "YNote: Cut Reading"
+      },
+      {
+        "command": "ynote.copyReading",
+        "title": "YNote: Copy Reading URL"
+      },
+      {
+        "command": "ynote.renameReading",
+        "title": "YNote: Rename Reading"
+      },
+      {
+        "command": "ynote.deleteReading",
+        "title": "YNote: Permanent Delete Reading",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "ynote.downloadReading",
+        "title": "YNote: Download Reading"
+      },
+      {
+        "command": "ynote.cutNote",
+        "title": "YNote: Cut Note"
+      },
+      {
+        "command": "ynote.copyNote",
+        "title": "YNote: Copy Note Content"
+      },
+      {
+        "command": "ynote.renameNote",
+        "title": "YNote: Rename Note"
+      },
+      {
+        "command": "ynote.deleteNote",
+        "title": "YNote: Permanent Delete Note",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "ynote.downloadNote",
+        "title": "YNote: Download Note"
       }
     ],
     "viewsContainers": {
@@ -117,59 +159,119 @@
         {
           "command": "ynote.addReading",
           "when": "view == ynoteReadings",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "ynote.syncToGithub",
+          "when": "view == ynoteReadings",
+          "group": "navigation@2"
+        },
+        {
+          "command": "ynote.pullFromGithub",
+          "when": "view == ynoteReadings",
+          "group": "navigation@3"
         },
         {
           "command": "ynote.refreshReadings",
           "when": "view == ynoteReadings",
-          "group": "navigation"
+          "group": "navigation@4"
         },
         {
           "command": "ynote.showDashboard",
           "when": "view == ynoteReadings",
-          "group": "navigation"
+          "group": "navigation@5"
         },
         {
           "command": "ynote.createNote",
           "when": "view == ynoteNotes",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "ynote.syncToGithub",
+          "when": "view == ynoteNotes",
+          "group": "navigation@2"
+        },
+        {
+          "command": "ynote.pullFromGithub",
+          "when": "view == ynoteNotes",
+          "group": "navigation@3"
         },
         {
           "command": "ynote.refreshNotes",
           "when": "view == ynoteNotes",
-          "group": "navigation"
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
         {
           "command": "ynote.openReading",
           "when": "view == ynoteReadings && viewItem == reading",
-          "group": "inline"
+          "group": "0_open@1"
         },
         {
-          "command": "ynote.removeReading",
+          "command": "ynote.cutReading",
           "when": "view == ynoteReadings && viewItem == reading",
-          "group": "inline"
+          "group": "1_clipboard@1"
+        },
+        {
+          "command": "ynote.copyReading",
+          "when": "view == ynoteReadings && viewItem == reading",
+          "group": "1_clipboard@2"
+        },
+        {
+          "command": "ynote.renameReading",
+          "when": "view == ynoteReadings && viewItem == reading",
+          "group": "2_edit@1"
         },
         {
           "command": "ynote.editTags",
           "when": "view == ynoteReadings && viewItem == reading",
-          "group": "inline"
+          "group": "2_edit@2"
+        },
+        {
+          "command": "ynote.deleteReading",
+          "when": "view == ynoteReadings && viewItem == reading",
+          "group": "3_manage@1"
+        },
+        {
+          "command": "ynote.downloadReading",
+          "when": "view == ynoteReadings && viewItem == reading",
+          "group": "3_manage@2"
         },
         {
           "command": "ynote.openNote",
           "when": "view == ynoteNotes && viewItem == note",
-          "group": "inline"
+          "group": "0_open@1"
         },
         {
-          "command": "ynote.removeNote",
+          "command": "ynote.cutNote",
           "when": "view == ynoteNotes && viewItem == note",
-          "group": "inline"
+          "group": "1_clipboard@1"
+        },
+        {
+          "command": "ynote.copyNote",
+          "when": "view == ynoteNotes && viewItem == note",
+          "group": "1_clipboard@2"
+        },
+        {
+          "command": "ynote.renameNote",
+          "when": "view == ynoteNotes && viewItem == note",
+          "group": "2_edit@1"
         },
         {
           "command": "ynote.editNoteTags",
           "when": "view == ynoteNotes && viewItem == note",
-          "group": "inline"
+          "group": "2_edit@2"
+        },
+        {
+          "command": "ynote.deleteNote",
+          "when": "view == ynoteNotes && viewItem == note",
+          "group": "3_manage@1"
+        },
+        {
+          "command": "ynote.downloadNote",
+          "when": "view == ynoteNotes && viewItem == note",
+          "group": "3_manage@2"
         }
       ]
     },

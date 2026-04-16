@@ -7,6 +7,7 @@ import { NotesTreeProvider, NoteItem } from './providers/notesTreeProvider';
 import { DashboardPanel } from './webview/DashboardPanel';
 import { registerAddReadingCommand } from './commands/addReading';
 import { registerSyncCommand, registerPullCommand } from './commands/syncToGithub';
+import { registerContextMenuCommands } from './commands/contextMenu';
 import { fetchMetadata } from './services/metadataFetcher';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -42,6 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerAddReadingCommand(context, db, onChanged),
     registerSyncCommand(context, db, noteDb, gitSync, onChanged),
     registerPullCommand(context, db, noteDb, gitSync, onChanged),
+    ...registerContextMenuCommands(context, db, noteDb, onChanged),
 
     vscode.commands.registerCommand('ynote.removeReading', async (item: ReadingItem) => {
       if (!item?.reading) { return; }
@@ -280,11 +282,12 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidSaveTextDocument(async (doc) => {
       const filePath = doc.uri.fsPath;
       if (filePath.startsWith(notesDirPath) && filePath.endsWith('.md')) {
-        const filename = filePath.slice(notesDirPath.length + 1);
-        const id = filename.replace(/\.md$/, '');
         try {
-          await noteDb.touchUpdatedAt(id);
-          notesTreeProvider.refresh();
+          const id = await noteDb.getIdFromFile(filePath);
+          if (id) {
+            await noteDb.touchUpdatedAt(id);
+            notesTreeProvider.refresh();
+          }
         } catch {
           // Silently ignore — file may not be a valid note
         }
