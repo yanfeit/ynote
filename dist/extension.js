@@ -64385,7 +64385,7 @@ function formatTimestamp(date) {
 var ImageService = class {
   constructor(context) {
     this.context = context;
-    this.baseImagesDir = path6.join(context.globalStorageUri.fsPath, IMAGES_DIR);
+    this.baseImagesDir = path6.join(context.globalStorageUri.fsPath, "notes", IMAGES_DIR);
   }
   /**
    * Get the base images directory path.
@@ -64447,11 +64447,12 @@ var ImageService = class {
   }
   /**
    * Get the relative Markdown image path for embedding in a note.
-   * Returns a path relative to the notes/ directory: `../images/{noteId}/{filename}`
+   * Returns a path relative to the notes/ directory: `images/{noteId}/{filename}`
+   * Images are stored inside the notes directory so webview previews can access them.
    */
   getRelativePath(noteId, imageFilename) {
     this.validateNoteId(noteId);
-    return `../images/${noteId}/${imageFilename}`;
+    return `images/${noteId}/${imageFilename}`;
   }
   /**
    * Delete all images for a specific note.
@@ -64518,6 +64519,44 @@ var ImageService = class {
     return Boolean(
       err && typeof err === "object" && "code" in err && err.code === "ENOENT"
     );
+  }
+  /**
+   * Migrate images from the old location (globalStorage/images/) to the new
+   * location (globalStorage/notes/images/). This is a one-time migration.
+   */
+  async migrateFromLegacyDir() {
+    const legacyDir = path6.join(this.context.globalStorageUri.fsPath, IMAGES_DIR);
+    if (legacyDir === this.baseImagesDir) {
+      return;
+    }
+    try {
+      await fs5.promises.access(legacyDir);
+    } catch {
+      return;
+    }
+    await fs5.promises.mkdir(this.baseImagesDir, { recursive: true });
+    const entries = await fs5.promises.readdir(legacyDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !UUID_PATTERN2.test(entry.name)) {
+        continue;
+      }
+      const src = path6.join(legacyDir, entry.name);
+      const dest = path6.join(this.baseImagesDir, entry.name);
+      try {
+        await fs5.promises.rename(src, dest);
+      } catch {
+        await fs5.promises.mkdir(dest, { recursive: true });
+        const files = await fs5.promises.readdir(src);
+        for (const file of files) {
+          await fs5.promises.copyFile(path6.join(src, file), path6.join(dest, file));
+        }
+        await fs5.promises.rm(src, { recursive: true, force: true });
+      }
+    }
+    try {
+      await fs5.promises.rmdir(legacyDir);
+    } catch {
+    }
   }
 };
 
@@ -64670,6 +64709,8 @@ function activate(context) {
   const noteDb = new NoteDb(context);
   const gitSync = new GitSync(context);
   const imageService = new ImageService(context);
+  imageService.migrateFromLegacyDir().catch(() => {
+  });
   const treeProvider = new ReadingsTreeProvider(db);
   const notesTreeProvider = new NotesTreeProvider(noteDb);
   const actionsTreeProvider = new ActionsTreeProvider();

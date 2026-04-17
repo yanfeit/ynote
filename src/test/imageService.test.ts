@@ -129,7 +129,7 @@ describe('ImageService', () => {
   describe('getRelativePath()', () => {
     it('returns correct relative path', () => {
       const relPath = imageService.getRelativePath(VALID_NOTE_ID, 'test.png');
-      assert.strictEqual(relPath, `../images/${VALID_NOTE_ID}/test.png`);
+      assert.strictEqual(relPath, `images/${VALID_NOTE_ID}/test.png`);
     });
 
     it('throws for invalid note ID', () => {
@@ -337,6 +337,43 @@ describe('ImageService', () => {
       assert.ok(!IMAGE_EXTENSIONS.has('.txt'));
       assert.ok(!IMAGE_EXTENSIONS.has('.js'));
       assert.ok(!IMAGE_EXTENSIONS.has('.exe'));
+    });
+  });
+
+  // ───── migrateFromLegacyDir() ─────
+
+  describe('migrateFromLegacyDir()', () => {
+    it('moves images from legacy dir to notes/images', async () => {
+      // Create legacy images dir (globalStorage/images/{noteId}/)
+      const legacyDir = path.join(tmpDir, 'images', VALID_NOTE_ID);
+      fs.mkdirSync(legacyDir, { recursive: true });
+      fs.writeFileSync(path.join(legacyDir, 'photo.png'), 'imagedata');
+
+      await imageService.migrateFromLegacyDir();
+
+      // Image should now be in notes/images/{noteId}/
+      const newPath = path.join(tmpDir, 'notes', 'images', VALID_NOTE_ID, 'photo.png');
+      assert.ok(fs.existsSync(newPath));
+      assert.strictEqual(fs.readFileSync(newPath, 'utf-8'), 'imagedata');
+
+      // Legacy dir should be removed
+      assert.ok(!fs.existsSync(path.join(tmpDir, 'images')));
+    });
+
+    it('does nothing when legacy dir does not exist', async () => {
+      // Should not throw
+      await imageService.migrateFromLegacyDir();
+    });
+
+    it('skips non-UUID directories in legacy dir', async () => {
+      const legacyDir = path.join(tmpDir, 'images');
+      fs.mkdirSync(path.join(legacyDir, 'not-a-uuid'), { recursive: true });
+      fs.writeFileSync(path.join(legacyDir, 'not-a-uuid', 'test.png'), 'data');
+
+      await imageService.migrateFromLegacyDir();
+
+      // non-UUID dir should remain in legacy location
+      assert.ok(fs.existsSync(path.join(legacyDir, 'not-a-uuid', 'test.png')));
     });
   });
 });

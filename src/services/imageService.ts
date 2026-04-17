@@ -46,7 +46,7 @@ export class ImageService {
   private baseImagesDir: string;
 
   constructor(private context: vscode.ExtensionContext) {
-    this.baseImagesDir = path.join(context.globalStorageUri.fsPath, IMAGES_DIR);
+    this.baseImagesDir = path.join(context.globalStorageUri.fsPath, 'notes', IMAGES_DIR);
   }
 
   /**
@@ -124,11 +124,12 @@ export class ImageService {
 
   /**
    * Get the relative Markdown image path for embedding in a note.
-   * Returns a path relative to the notes/ directory: `../images/{noteId}/{filename}`
+   * Returns a path relative to the notes/ directory: `images/{noteId}/{filename}`
+   * Images are stored inside the notes directory so webview previews can access them.
    */
   getRelativePath(noteId: string, imageFilename: string): string {
     this.validateNoteId(noteId);
-    return `../images/${noteId}/${imageFilename}`;
+    return `images/${noteId}/${imageFilename}`;
   }
 
   /**
@@ -203,6 +204,50 @@ export class ImageService {
       'code' in err &&
       (err as { code?: string }).code === 'ENOENT'
     );
+  }
+
+  /**
+   * Migrate images from the old location (globalStorage/images/) to the new
+   * location (globalStorage/notes/images/). This is a one-time migration.
+   */
+  async migrateFromLegacyDir(): Promise<void> {
+    const legacyDir = path.join(this.context.globalStorageUri.fsPath, IMAGES_DIR);
+    // Skip if legacy dir doesn't exist or is the same as current
+    if (legacyDir === this.baseImagesDir) { return; }
+    try {
+      await fs.promises.access(legacyDir);
+    } catch {
+      return; // Legacy dir doesn't exist, nothing to migrate
+    }
+
+    // Ensure destination exists
+    await fs.promises.mkdir(this.baseImagesDir, { recursive: true });
+
+    // Move each note-id subdirectory
+    const entries = await fs.promises.readdir(legacyDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !UUID_PATTERN.test(entry.name)) { continue; }
+      const src = path.join(legacyDir, entry.name);
+      const dest = path.join(this.baseImagesDir, entry.name);
+      try {
+        await fs.promises.rename(src, dest);
+      } catch {
+        // Cross-device move: copy files then remove source
+        await fs.promises.mkdir(dest, { recursive: true });
+        const files = await fs.promises.readdir(src);
+        for (const file of files) {
+          await fs.promises.copyFile(path.join(src, file), path.join(dest, file));
+        }
+        await fs.promises.rm(src, { recursive: true, force: true });
+      }
+    }
+
+    // Remove legacy directory if empty
+    try {
+      await fs.promises.rmdir(legacyDir);
+    } catch {
+      // Not empty or other error — leave it
+    }
   }
 }
 

@@ -19,6 +19,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const noteDb = new NoteDb(context);
   const gitSync = new GitSync(context);
   const imageService = new ImageService(context);
+
+  // Migrate images from legacy location (globalStorage/images/ → globalStorage/notes/images/)
+  imageService.migrateFromLegacyDir().catch(() => { /* best-effort migration */ });
+
   const treeProvider = new ReadingsTreeProvider(db);
   const notesTreeProvider = new NotesTreeProvider(noteDb);
   const actionsTreeProvider = new ActionsTreeProvider();
