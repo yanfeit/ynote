@@ -1,70 +1,5 @@
 # YNote Development Progress
 
-## Unreleased — Note Pinning
-> Completed: 2026-04-28
-
-### Notes Pinning
-| Task | Status | Notes |
-|------|--------|-------|
-| Note pin state | Done | `src/models/note.ts` adds optional `pinned` metadata in YAML front matter |
-| Pin/Unpin commands | Done | `ynote.pinNote` and `ynote.unpinNote` added to note context menus |
-| Pinned notes section | Done | Notes sidebar shows a dedicated top-level pinned group above year-month groups |
-| Pinned note visuals | Done | Pinned notes use a pin icon/context value and stay out of month buckets |
-
-### Save-Path Hardening
-| Task | Status | Notes |
-|------|--------|-------|
-| Preserve manual `pinned` front matter | Done | Saving a note no longer strips `pinned: true` added directly in YAML |
-| Targeted `updatedAt` refresh | Done | `touchUpdatedAt()` updates only the `updatedAt:` line instead of reserializing front matter |
-
-### Testing & Documentation
-| Task | Status | Notes |
-|------|--------|-------|
-| Regression test | Done | `noteDb.test.ts` verifies pinned front matter survives save-triggered timestamp updates |
-| Harness docs synced | Done | `PROGRESS.md`, `CHANGELOG.md`, `CLAUDE.md`, and `README.md` updated for note pinning |
-
-## v0.3.0 — Image Support for Notes
-> Completed: 2026-04-16
-
-### Image Service
-| Task | Status | Notes |
-|------|--------|-------|
-| ImageService class | Done | `src/services/imageService.ts` — save, delete, list, path generation, validation |
-| Per-note subdirectories | Done | `globalStorageUri/images/{noteId}/` with UUID validation |
-| Timestamp-based naming | Done | `{YYYYMMDD-HHmmss}-{sanitized-name}.{ext}` with collision handling |
-| File format validation | Done | Rejects non-image extensions (.exe, .js, etc.) |
-| Sanitize filenames | Done | Strip disallowed chars, truncate, collapse dashes |
-
-### Image Insertion
-| Task | Status | Notes |
-|------|--------|-------|
-| Insert Image command | Done | `ynote.insertImage` — file picker → save → insert markdown link at cursor |
-| Keybinding | Done | `Ctrl+Shift+I` / `Cmd+Shift+I` when editing markdown |
-| Clipboard paste | Done | `ImagePasteProvider` — paste screenshots, saves as `paste-{timestamp}.png` |
-| Drag-and-drop | Done | `ImageDropProvider` — drag images from file explorer into notes |
-| Markdown link format | Done | `![alt](../images/{noteId}/{filename})` — works with VS Code preview |
-
-### Image Sync
-| Task | Status | Notes |
-|------|--------|-------|
-| syncImages() | Done | Binary comparison (size + content), per-note subdirectory sync |
-| pullImages() | Done | Mirror remote → local, delete unmatched local directories |
-| Sync integration | Done | `sync()` and `pull()` accept `localImagesDir` parameter |
-| Sync messages | Done | Image counts included in push/pull progress messages |
-
-### Image Cleanup
-| Task | Status | Notes |
-|------|--------|-------|
-| Delete note cleanup | Done | `ynote.deleteNote` removes `images/{noteId}/` |
-| Remove note cleanup | Done | `ynote.removeNote` removes `images/{noteId}/` |
-| Cut note cleanup | Done | `ynote.cutNote` removes `images/{noteId}/` |
-| Non-fatal errors | Done | Image cleanup failures don't block note deletion |
-
-### Testing
-| Task | Status | Notes |
-|------|--------|-------|
-| ImageService tests | Done | 20 tests: sanitize, generate, save, delete, list, collision, validation |
-| GitSync image tests | Done | 11 tests: syncImages, pullImages, binary files, subdirectories |
 
 ---
 
@@ -276,3 +211,70 @@
 
 ## Known Issues
 - None
+
+## v0.2.3 — Image Support for Notes
+> Completed: 2026-04-16
+
+### Image Service
+| Task | Status | Notes |
+|------|--------|-------|
+| ImageService class | Done | `src/services/imageService.ts` — save, delete, list, path generation, validation |
+| Per-note subdirectories | Done | `globalStorageUri/images/{noteId}/` with UUID validation |
+| Timestamp-based naming | Done | `{YYYYMMDD-HHmmss}-{sanitized-name}.{ext}` with collision handling |
+| File format validation | Done | Rejects non-image extensions (.exe, .js, etc.) |
+| Sanitize filenames | Done | Strip disallowed chars, truncate, collapse dashes |
+
+### Image Insertion
+| Task | Status | Notes |
+|------|--------|-------|
+| Insert Image command | Done | `ynote.insertImage` — file picker → save → insert markdown link at cursor |
+| Keybinding | Done | `Ctrl+Shift+I` / `Cmd+Shift+I` when editing markdown |
+| Clipboard paste | Done | `ImagePasteProvider` — paste screenshots, saves as `paste-{timestamp}.png` |
+| Drag-and-drop | Done | `ImageDropProvider` — drag images from file explorer into notes |
+| Markdown link format | Done | `![alt](../images/{noteId}/{filename})` — works with VS Code preview |
+
+### Image Sync
+| Task | Status | Notes |
+|------|--------|-------|
+| syncImages() | Done | Binary comparison (size + content), per-note subdirectory sync |
+| pullImages() | Done | Mirror remote → local, delete unmatched local directories |
+| Sync integration | Done | `sync()` and `pull()` accept `localImagesDir` parameter |
+| Sync messages | Done | Image counts included in push/pull progress messages |
+
+### Image Cleanup
+| Task | Status | Notes |
+|------|--------|-------|
+| Delete note cleanup | Done | `ynote.deleteNote` removes `images/{noteId}/` |
+| Remove note cleanup | Done | `ynote.removeNote` removes `images/{noteId}/` |
+| Cut note cleanup | Done | `ynote.cutNote` removes `images/{noteId}/` |
+| Non-fatal errors | Done | Image cleanup failures don't block note deletion |
+
+### Testing
+| Task | Status | Notes |
+|------|--------|-------|
+| ImageService tests | Done | 20 tests: sanitize, generate, save, delete, list, collision, validation |
+| GitSync image tests | Done | 11 tests: syncImages, pullImages, binary files, subdirectories |
+
+## v0.2.3+ — Note Pinning
+> Completed: 2026-04-28
+
+### Notes Pinning
+| Task | Status | Notes |
+|------|--------|-------|
+| Note pin state | Done | `src/models/note.ts` adds optional `pinned` metadata in YAML front matter |
+| Pin/Unpin commands | Done | `ynote.pinNote` and `ynote.unpinNote` added to note context menus |
+| Pinned notes section | Done | Notes sidebar shows a dedicated top-level pinned group above year-month groups |
+| Pinned note visuals | Done | Pinned notes use a pin icon/context value and stay out of month buckets |
+
+### Save-Path Hardening
+| Task | Status | Notes |
+|------|--------|-------|
+| Preserve manual `pinned` front matter | Done | Saving a note no longer strips `pinned: true` added directly in YAML |
+| Targeted `updatedAt` refresh | Done | `touchUpdatedAt()` updates only the `updatedAt:` line instead of reserializing front matter |
+
+### Testing & Documentation
+| Task | Status | Notes |
+|------|--------|-------|
+| Regression test | Done | `noteDb.test.ts` verifies pinned front matter survives save-triggered timestamp updates |
+| Harness docs synced | Done | `PROGRESS.md`, `CHANGELOG.md`, `CLAUDE.md`, and `README.md` updated for note pinning |
+
