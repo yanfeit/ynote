@@ -137,6 +137,16 @@
         "command": "ynote.insertImage",
         "title": "YNote: Insert Image",
         "icon": "$(file-media)"
+      },
+      {
+        "command": "ynote.pinNote",
+        "title": "YNote: Pin Note",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "ynote.unpinNote",
+        "title": "YNote: Unpin Note",
+        "icon": "$(pinned)"
       }
     ],
     "viewsContainers": {
@@ -268,6 +278,51 @@
           "command": "ynote.downloadNote",
           "when": "view == ynoteNotes && viewItem == note",
           "group": "3_manage@2"
+        },
+        {
+          "command": "ynote.pinNote",
+          "when": "view == ynoteNotes && viewItem == note",
+          "group": "3_manage@3"
+        },
+        {
+          "command": "ynote.openNote",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "0_open@1"
+        },
+        {
+          "command": "ynote.cutNote",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "1_clipboard@1"
+        },
+        {
+          "command": "ynote.copyNote",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "1_clipboard@2"
+        },
+        {
+          "command": "ynote.renameNote",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "ynote.editNoteTags",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "ynote.deleteNote",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "3_manage@1"
+        },
+        {
+          "command": "ynote.downloadNote",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "3_manage@2"
+        },
+        {
+          "command": "ynote.unpinNote",
+          "when": "view == ynoteNotes && viewItem == pinnedNote",
+          "group": "3_manage@3"
         }
       ]
     },

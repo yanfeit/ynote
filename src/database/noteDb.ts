@@ -90,7 +90,7 @@ function parseFrontMatter(content: string): { meta: Record<string, string | stri
 /**
  * Serialize front matter and body back into a Markdown string.
  */
-function serializeFrontMatter(meta: { id: string; title: string; createdAt: string; updatedAt: string; tags: string[] }, body: string): string {
+function serializeFrontMatter(meta: { id: string; title: string; createdAt: string; updatedAt: string; tags: string[]; pinned?: boolean }, body: string): string {
   let fm = '---\n';
   fm += `id: ${meta.id}\n`;
   fm += `title: ${meta.title}\n`;
@@ -99,6 +99,9 @@ function serializeFrontMatter(meta: { id: string; title: string; createdAt: stri
   fm += 'tags:\n';
   for (const tag of meta.tags) {
     fm += `  - ${tag}\n`;
+  }
+  if (meta.pinned) {
+    fm += `pinned: true\n`;
   }
   fm += '---\n';
   return fm + body;
@@ -166,8 +169,9 @@ export class NoteDb {
       const tags = Array.isArray(meta.tags)
         ? meta.tags.filter(t => typeof t === 'string' && t.trim().length > 0)
         : [];
+      const pinned = meta.pinned === 'true' ? true : undefined;
 
-      return { id, title, createdAt, updatedAt, tags, filePath };
+      return { id, title, createdAt, updatedAt, tags, filePath, pinned };
     } catch {
       return undefined;
     }
@@ -271,7 +275,7 @@ export class NoteDb {
    * Always updates `updatedAt` to the current time.
    * If the title changes, renames the file to match the new title.
    */
-  async updateMetadata(id: string, partial: Partial<Pick<Note, 'title' | 'tags'>>): Promise<void> {
+  async updateMetadata(id: string, partial: Partial<Pick<Note, 'title' | 'tags' | 'pinned'>>): Promise<void> {
     await this.withMutationLock(async () => {
       const filePath = await this.findFileById(id);
       if (!filePath) {
@@ -296,6 +300,7 @@ export class NoteDb {
       const currentTitle = typeof result.meta.title === 'string' ? result.meta.title : '';
       const currentTags = Array.isArray(result.meta.tags) ? result.meta.tags.filter(t => typeof t === 'string') : [];
       const currentCreatedAt = typeof result.meta.createdAt === 'string' ? result.meta.createdAt : EPOCH_ISO;
+      const currentPinned = result.meta.pinned === 'true' ? true : undefined;
 
       const newTitle = partial.title ?? currentTitle;
       const meta = {
@@ -304,6 +309,7 @@ export class NoteDb {
         createdAt: currentCreatedAt,
         updatedAt: new Date().toISOString(),
         tags: partial.tags ?? currentTags,
+        pinned: 'pinned' in partial ? partial.pinned : currentPinned,
       };
 
       const newContent = serializeFrontMatter(meta, result.body);
@@ -315,6 +321,13 @@ export class NoteDb {
         await fs.promises.rename(filePath, newFilePath);
       }
     });
+  }
+
+  /**
+   * Toggle or set the pinned state of a note.
+   */
+  async pin(id: string, pinned: boolean): Promise<void> {
+    await this.updateMetadata(id, { pinned: pinned || undefined });
   }
 
   /**

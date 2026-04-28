@@ -217,6 +217,30 @@ export function registerContextMenuCommands(
         vscode.window.showErrorMessage(`Failed to save note: ${message}`);
       }
     }),
+
+    vscode.commands.registerCommand('ynote.pinNote', async (item: NoteItem) => {
+      if (!item?.note) { return; }
+      try {
+        await noteDb.pin(item.note.id, true);
+        onChanged();
+        vscode.window.showInformationMessage(`Note "${item.note.title}" pinned.`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to pin note: ${message}`);
+      }
+    }),
+
+    vscode.commands.registerCommand('ynote.unpinNote', async (item: NoteItem) => {
+      if (!item?.note) { return; }
+      try {
+        await noteDb.pin(item.note.id, false);
+        onChanged();
+        vscode.window.showInformationMessage(`Note "${item.note.title}" unpinned.`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to unpin note: ${message}`);
+      }
+    }),
   ];
 }
 
