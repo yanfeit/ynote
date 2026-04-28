@@ -10,7 +10,7 @@ YNote is a lightweight note-taking plugin for information management built for d
 **YNote** is a VS Code Extension for maintaining a private reading record and note-taking system. It lets users:
 - Paste URLs (blog posts, articles, news) and auto-extract metadata (title, author, organization, abstract)
 - Create free-form Markdown notes with YAML front matter
-- Organize both via tags, search, and year-month grouping
+- Organize both via tags, search, year-month grouping, and pinned notes
 - Sync everything to a private GitHub repo
 
 ## Framework / Data Flow
@@ -76,19 +76,19 @@ YNote is a lightweight note-taking plugin for information management built for d
 ### Component Responsibilities
 | Component | File | Role |
 |-----------|------|------|
-| **Entry point** | `extension.ts` | Registers 25 commands, 3 tree views, file watcher, wires dependencies |
-| **Data models** | `models/reading.ts`, `models/note.ts` | `Reading` interface (11 fields) and `Note` interface (6 fields) |
+| **Entry point** | `extension.ts` | Registers 27 commands, 3 tree views, file watcher, wires dependencies |
+| **Data models** | `models/reading.ts`, `models/note.ts` | `Reading` interface (11 fields) and `Note` interface (7 fields including optional `pinned`) |
 | **Readings DB** | `database/jsonDb.ts` | JSON file CRUD, sorted newest-first, dedup by URL, mutation lock, atomic writes |
-| **Notes DB** | `database/noteDb.ts` | Markdown files with YAML front matter, title-based filenames, auto-migration from UUID names |
+| **Notes DB** | `database/noteDb.ts` | Markdown files with YAML front matter, title-based filenames, pinned metadata, auto-migration from UUID names |
 | **Image Service** | `services/imageService.ts` | Per-note image storage, save/delete/list, filename generation, format validation |
 | **Fetcher** | `services/metadataFetcher.ts` | URL → HTML → extract title/author/org/abstract via cheerio (OG, JSON-LD, meta, paragraph fallback); content keyword extraction |
 | **Sync** | `services/gitSync.ts` | Clone/pull/push via git CLI; per-entry JSON files for readings, raw `.md` for notes; diff-based sync |
 | **Add command** | `commands/addReading.ts` | URL input → fetch → confirm → tag → save → refresh UI |
 | **Sync commands** | `commands/syncToGithub.ts` | Push/pull with progress notification + error UI |
-| **Context menus** | `commands/contextMenu.ts` | Cut, Copy, Rename, Permanent Delete, Download — for both readings and notes; auto-cleanup of note images on delete |
+| **Context menus** | `commands/contextMenu.ts` | Cut, Copy, Rename, Permanent Delete, Download — for both readings and notes; notes also support Pin/Unpin; auto-cleanup of note images on delete |
 | **Insert image** | `commands/insertImage.ts` | File picker → save to note's image dir → insert Markdown link at cursor |
 | **Readings tree** | `providers/readingsTreeProvider.ts` | Year-month groups → reading items → detail rows (author, org, abstract, source, tags, URL) |
-| **Notes tree** | `providers/notesTreeProvider.ts` | Year-month groups → note items → tag details |
+| **Notes tree** | `providers/notesTreeProvider.ts` | Pinned group + year-month groups → note items → tag details |
 | **Actions tree** | `providers/actionsTreeProvider.ts` | Manage section: Settings, Push to GitHub, Pull from GitHub |
 | **Image paste/drop** | `providers/imagePasteProvider.ts` | DocumentPasteEditProvider + DocumentDropEditProvider for image insertion in notes |
 | **Dashboard** | `webview/DashboardPanel.ts` | HTML card layout with inline search, rich-text comment editor, year-month sections |
@@ -101,7 +101,7 @@ YNote is a lightweight note-taking plugin for information management built for d
 
 ### Data Storage
 - **Readings**: JSON file (`readings.json`) in `context.globalStorageUri` — git-friendly diffs, human-readable
-- **Notes**: Individual Markdown files (`{sanitized-title}.md`) in `globalStorageUri/notes/` — YAML front matter for metadata, body for content
+- **Notes**: Individual Markdown files (`{sanitized-title}.md`) in `globalStorageUri/notes/` — YAML front matter for metadata (`pinned: true` supported), body for content
 - **Images**: Per-note subdirectories in `globalStorageUri/images/{noteId}/` — timestamped filenames, binary files (PNG, JPG, etc.)
 - **Sync**: Manual git push/pull to a private GitHub repo; readings as individual `readings/{id}.json` files, notes as `notes/{title}.md` files, images as `images/{noteId}/{filename}` files
 
@@ -113,13 +113,13 @@ YNote is a lightweight note-taking plugin for information management built for d
 ### Source Structure
 ```
 src/
-├── extension.ts                 # Entry point: activate/deactivate, 25 command registrations
+├── extension.ts                 # Entry point: activate/deactivate, 27 command registrations
 ├── models/
 │   ├── reading.ts               # Reading interface (id, url, title, author, org, abstract, dates, tags, source, comment)
-│   └── note.ts                  # Note interface (id, title, createdAt, updatedAt, tags, filePath)
+│   └── note.ts                  # Note interface (id, title, createdAt, updatedAt, tags, pinned, filePath)
 ├── database/
 │   ├── jsonDb.ts                # Readings JSON CRUD (mutation lock, atomic writes)
-│   └── noteDb.ts                # Notes Markdown CRUD (YAML front matter, title-based filenames, migration)
+│   └── noteDb.ts                # Notes Markdown CRUD (YAML front matter, pin state, title-based filenames, migration)
 ├── services/
 │   ├── metadataFetcher.ts       # URL → metadata extraction + content keyword suggestion
 │   ├── imageService.ts          # Per-note image storage: save, delete, list, path generation
@@ -128,10 +128,10 @@ src/
 │   ├── addReading.ts            # Add reading from URL (fetch, confirm, tag, save)
 │   ├── insertImage.ts           # Insert image into note (file picker, save, markdown link)
 │   ├── syncToGithub.ts          # Push & pull sync commands with progress UI
-│   └── contextMenu.ts           # Cut/Copy/Rename/Delete/Download for readings and notes
+│   └── contextMenu.ts           # Cut/Copy/Rename/Delete/Download for readings and notes, plus note pin/unpin
 ├── providers/
 │   ├── readingsTreeProvider.ts  # Sidebar tree: year-month → reading → details
-│   ├── notesTreeProvider.ts     # Sidebar tree: year-month → note → tags
+│   ├── notesTreeProvider.ts     # Sidebar tree: pinned section + year-month → note → tags
 │   ├── actionsTreeProvider.ts   # Manage section: Settings, Push, Pull actions
 │   └── imagePasteProvider.ts    # DocumentPasteEditProvider + DocumentDropEditProvider for images
 ├── webview/
@@ -230,10 +230,12 @@ npx @vscode/vsce package   # Produces .vsix file (uses esbuild bundle, excludes 
 | `ynote.renameNote` | — | Rename note (title + filename) |
 | `ynote.deleteNote` | — | Permanently delete note |
 | `ynote.downloadNote` | — | Download note as `.md` file |
+| `ynote.pinNote` | — | Pin a note to the top of the Notes sidebar |
+| `ynote.unpinNote` | — | Remove a note from the pinned section |
 
 ## Testing
 ```bash
-npm test             # Run 97 unit tests (mocha)
+npm test             # Run the unit test suite (mocha)
 ```
 - **JsonDb tests** (`jsonDb.test.ts`): 23 tests — CRUD, concurrent writes, robustness (corrupted JSON, bad timestamps)
 - **NoteDb tests** (`noteDb.test.ts`): 25 tests — CRUD, front matter parsing, UUID migration, concurrent writes

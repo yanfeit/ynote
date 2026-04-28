@@ -19,13 +19,13 @@ YNote is built as a VS Code extension. Just Paste a URL, auto-extract metadata (
 - **Tag System**: Intelligent tag recommendations from existing tags and content keyword extraction; QuickPick selection with custom comma-separated input
 
 ### Note-Taking
-- **Create Notes**: Create Markdown notes with YAML front matter — title, tags, auto-timestamps
+- **Create Notes**: Create Markdown notes with YAML front matter — title, tags, optional `pinned: true`, and auto-timestamps
 - **VS Code Native Editing**: Notes open in VS Code's built-in editor with full Markdown support
-- **Notes Sidebar**: Year-month grouping (current month auto-expanded), expandable tag details
-- **Auto-update Timestamp**: Saving a note file automatically updates its `updatedAt` front matter
+- **Notes Sidebar**: Dedicated pinned section plus year-month grouping (current month auto-expanded), with expandable tag details for regular notes
+- **Auto-update Timestamp**: Saving a note file automatically updates its `updatedAt` front matter without removing `pinned` metadata
 
 ### Organization & Management
-- **Context Menus**: Right-click any reading or note for Cut, Copy, Rename, Permanent Delete, and Download
+- **Context Menus**: Right-click any reading or note for Cut, Copy, Rename, Permanent Delete, and Download; notes also support Pin and Unpin
 - **Manage Section**: Dedicated sidebar view with Settings, Push to GitHub, and Pull from GitHub actions
 - **GitHub Sync**: Push and pull readings + notes to a private GitHub repo via git CLI; diff-based merge with `updatedAt` timestamps
 
@@ -72,7 +72,8 @@ YNote works in Remote SSH and WSL environments. When connected to a remote machi
 3. The extension fetches metadata and saves the reading
 4. Browse in the **YNote** sidebar or open the **Dashboard** via command palette
 5. Create notes via the **Notes** sidebar (`+` button) and edit in VS Code's native editor
-6. Sync everything to GitHub via the **Manage** section in the sidebar
+6. Pin important notes from the note context menu to keep them in the **Pinned** section at the top of the sidebar
+7. Sync everything to GitHub via the **Manage** section in the sidebar
 
 ### Commands
 
@@ -83,6 +84,7 @@ YNote works in Remote SSH and WSL environments. When connected to a remote machi
 | YNote: Open in Browser | — | Open reading URL in browser (context menu) |
 | YNote: Create Note | — | Create a new Markdown note |
 | YNote: Open Note | — | Open note in VS Code editor |
+| YNote: Pin Note / Unpin Note | — | Toggle whether a note stays in the pinned section |
 | YNote: Edit Tags | — | Edit tags on a reading |
 | YNote: Edit Note Tags | — | Edit tags on a note |
 | YNote: Push to GitHub | — | Push readings + notes to GitHub |
@@ -132,7 +134,7 @@ Your data is stored locally in VS Code's global storage path:
 - **Remote SSH**: `~/.vscode-server/data/User/globalStorage/yanfeit.ynote/readings.json`
 - **Windows**: `%APPDATA%\Code\User\globalStorage\yanfeit.ynote\readings.json`
 
-**Notes**: Individual Markdown files with YAML front matter in `notes/` subdirectory
+**Notes**: Individual Markdown files with YAML front matter in `notes/` subdirectory (`pinned: true` is supported)
 - **Linux / WSL**: `~/.config/Code/User/globalStorage/yanfeit.ynote/notes/{title}.md`
 - **Remote SSH**: `~/.vscode-server/data/User/globalStorage/yanfeit.ynote/notes/{title}.md`
 - **Windows**: `%APPDATA%\Code\User\globalStorage\yanfeit.ynote\notes\{title}.md`
@@ -143,7 +145,7 @@ Your data is stored locally in VS Code's global storage path:
 npm run compile   # Build
 npm run watch     # Watch mode
 npm run lint      # Type-check
-npm test          # Run unit tests (97 tests)
+npm test          # Run unit tests
 ```
 
 Press `F5` in VS Code to launch the Extension Development Host for live testing.

@@ -1,5 +1,28 @@
 # YNote Development Progress
 
+## Unreleased — Note Pinning
+> Completed: 2026-04-28
+
+### Notes Pinning
+| Task | Status | Notes |
+|------|--------|-------|
+| Note pin state | Done | `src/models/note.ts` adds optional `pinned` metadata in YAML front matter |
+| Pin/Unpin commands | Done | `ynote.pinNote` and `ynote.unpinNote` added to note context menus |
+| Pinned notes section | Done | Notes sidebar shows a dedicated top-level pinned group above year-month groups |
+| Pinned note visuals | Done | Pinned notes use a pin icon/context value and stay out of month buckets |
+
+### Save-Path Hardening
+| Task | Status | Notes |
+|------|--------|-------|
+| Preserve manual `pinned` front matter | Done | Saving a note no longer strips `pinned: true` added directly in YAML |
+| Targeted `updatedAt` refresh | Done | `touchUpdatedAt()` updates only the `updatedAt:` line instead of reserializing front matter |
+
+### Testing & Documentation
+| Task | Status | Notes |
+|------|--------|-------|
+| Regression test | Done | `noteDb.test.ts` verifies pinned front matter survives save-triggered timestamp updates |
+| Harness docs synced | Done | `PROGRESS.md`, `CHANGELOG.md`, `CLAUDE.md`, and `README.md` updated for note pinning |
+
 ## v0.3.0 — Image Support for Notes
 > Completed: 2026-04-16
 

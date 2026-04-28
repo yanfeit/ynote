@@ -62091,11 +62091,43 @@ var NoteDb = class {
    * Touch the `updatedAt` field in a note's front matter (called on file save).
    */
   async touchUpdatedAt(id) {
-    const filePath = await this.findFileById(id);
-    if (!filePath) {
-      return;
-    }
-    await this.updateMetadata(id, {});
+    await this.withMutationLock(async () => {
+      const filePath = await this.findFileById(id);
+      if (!filePath) {
+        return;
+      }
+      let content;
+      try {
+        content = await fs2.promises.readFile(filePath, "utf-8");
+      } catch (err) {
+        if (this.isFileNotFound(err)) {
+          return;
+        }
+        throw err;
+      }
+      const result = parseFrontMatter(content);
+      if (!result) {
+        return;
+      }
+      const lineBreak = content.includes("\r\n") ? "\r\n" : "\n";
+      const endMarker = `${lineBreak}---${lineBreak}`;
+      const endIndex = content.indexOf(endMarker, 4);
+      if (endIndex === -1) {
+        return;
+      }
+      const frontMatterLines = content.slice(0, endIndex).split(lineBreak);
+      const updatedAtLine = `updatedAt: ${(/* @__PURE__ */ new Date()).toISOString()}`;
+      const updatedAtIndex = frontMatterLines.findIndex((line) => line.startsWith("updatedAt:"));
+      if (updatedAtIndex >= 0) {
+        frontMatterLines[updatedAtIndex] = updatedAtLine;
+      } else {
+        const createdAtIndex = frontMatterLines.findIndex((line) => line.startsWith("createdAt:"));
+        const insertAt = createdAtIndex >= 0 ? createdAtIndex + 1 : frontMatterLines.length;
+        frontMatterLines.splice(insertAt, 0, updatedAtLine);
+      }
+      const newContent = frontMatterLines.join(lineBreak) + content.slice(endIndex);
+      await fs2.promises.writeFile(filePath, newContent, "utf-8");
+    });
   }
   /**
    * Find a note by its ID.

@@ -5,6 +5,22 @@ All notable changes to YNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-04-28
+
+### Added
+- **Pinned notes**: Notes can now be pinned from the sidebar context menu and rendered in a dedicated pinned section above the year-month groups
+- **Pinned front matter support**: Notes persist `pinned: true` in YAML front matter so the state survives reloads and syncs
+
+### Changed
+- **Notes sidebar organization**: Pinned notes are excluded from month buckets and shown with a pin icon/context value for separate Pin/Unpin menu behavior
+
+### Fixed
+- **Pinned metadata preservation on save**: Saving a note no longer removes manually added `pinned` front matter
+- **Timestamp touch path**: `touchUpdatedAt()` now updates only the `updatedAt:` line instead of reconstructing all front matter
+
+### Internal
+- Added a regression test covering manual `pinned: true` front matter followed by save-triggered timestamp updates
+
 ## [0.2.3] - 2026-04-16
 
 ### Added

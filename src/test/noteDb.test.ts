@@ -175,6 +175,23 @@ describe('NoteDb', () => {
       assert.deepStrictEqual(updated!.tags, ['tag1']);
       assert.notStrictEqual(updated!.updatedAt, note.updatedAt);
     });
+
+    it('preserves pinned front matter added before save', async () => {
+      const note = await noteDb.add('Pinned Save Test', ['tag1']);
+      let content = fs.readFileSync(note.filePath, 'utf-8');
+      content = content.replace('tags:\n  - tag1\n', 'tags:\n  - tag1\npinned: true\n');
+      fs.writeFileSync(note.filePath, content, 'utf-8');
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await noteDb.touchUpdatedAt(note.id);
+
+      const updated = await noteDb.findById(note.id);
+      assert.ok(updated);
+      assert.strictEqual(updated!.pinned, true);
+
+      const updatedContent = fs.readFileSync(note.filePath, 'utf-8');
+      assert.ok(updatedContent.includes('pinned: true'));
+    });
   });
 
   describe('findById()', () => {
